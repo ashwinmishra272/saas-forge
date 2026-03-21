@@ -51,6 +51,7 @@ public class TenantService {
         adminRole.setName("ADMIN");
         adminRole.setRoleKey("ADMIN");
         adminRole.setTenant(tenant);
+        adminRole.setCreatedAt(LocalDateTime.now());
         roleRepository.save(adminRole);
 
         // 3 Create admin user
@@ -60,7 +61,9 @@ public class TenantService {
         adminUser.setPassword(passwordEncoder.encode(request.getPassword()));
         adminUser.setTenant(tenant);
         adminUser.setRole(adminRole);
-
+        adminUser.setStatus("ACTIVE");
+        adminUser.setCreatedAt(LocalDateTime.now());
+        adminUser.setUpdatedAt(LocalDateTime.now());
         userRepository.save(adminUser);
     }
 }

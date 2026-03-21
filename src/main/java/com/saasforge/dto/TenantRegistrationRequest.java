@@ -5,7 +5,7 @@ import lombok.Data;
 @Data
 public class TenantRegistrationRequest {
 
-    public String getUserName;
+    private String userName;
     private String tenantName;
     private String adminName;
     private String adminEmail;
