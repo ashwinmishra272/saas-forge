@@ -2,6 +2,8 @@ package com.saasforge.service;
 
 import com.saasforge.dto.LoginRequest;
 import com.saasforge.entity.User;
+import com.saasforge.exception.BadRequestException;
+import com.saasforge.exception.ResourceNotFoundException;
 import com.saasforge.repository.UserRepository;
 import com.saasforge.security.JwtService;
 import lombok.RequiredArgsConstructor;
@@ -19,10 +21,10 @@ public class AuthService {
     public String login(LoginRequest request) {
 
         User user = userRepository.findByEmail(request.getEmail())
-                .orElseThrow(() -> new RuntimeException("User not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
 
         if (!passwordEncoder.matches(request.getPassword(), user.getPassword())) {
-            throw new RuntimeException("Invalid credentials");
+            throw new BadRequestException("Invalid credentials");
         }
 
         return jwtService.generateToken(user.getEmail(), user.getId(), user.getTenant().getId(), user.getRole().getRoleKey());
