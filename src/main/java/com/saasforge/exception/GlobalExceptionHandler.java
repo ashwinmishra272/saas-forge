@@ -2,14 +2,19 @@ package com.saasforge.exception;
 
 import com.saasforge.dto.ErrorResponse;
 import jakarta.servlet.http.HttpServletRequest;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
 import java.time.LocalDateTime;
+import java.util.HashMap;
+import java.util.Map;
 
+@Slf4j
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
@@ -18,13 +23,14 @@ public class GlobalExceptionHandler {
             ResourceNotFoundException ex,
             HttpServletRequest request) {
 
+        log.warn("Resource not found: {} - path: {}", ex.getMessage(), request.getRequestURI());
+
         ErrorResponse error = new ErrorResponse(
                 HttpStatus.NOT_FOUND.value(),
                 ex.getMessage(),
                 request.getRequestURI(),
                 LocalDateTime.now()
         );
-
         return ResponseEntity.status(HttpStatus.NOT_FOUND).body(error);
     }
 
@@ -33,33 +39,36 @@ public class GlobalExceptionHandler {
             BadRequestException ex,
             HttpServletRequest request) {
 
+        log.warn("Bad request: {} - path: {}", ex.getMessage(), request.getRequestURI());
+
         ErrorResponse error = new ErrorResponse(
                 HttpStatus.BAD_REQUEST.value(),
                 ex.getMessage(),
                 request.getRequestURI(),
                 LocalDateTime.now()
         );
-
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(error);
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
-    public ResponseEntity<ErrorResponse> handleValidation(
+    public ResponseEntity<ValidationErrorResponse> handleValidationErrors(
             MethodArgumentNotValidException ex,
             HttpServletRequest request) {
 
-        String message = ex.getBindingResult().getFieldErrors().stream()
-                .map(e -> e.getField() + ": " + e.getDefaultMessage())
-                .findFirst()
-                .orElse("Validation failed");
+        Map<String, String> fieldErrors = new HashMap<>();
+        for (FieldError fieldError : ex.getBindingResult().getFieldErrors()) {
+            fieldErrors.put(fieldError.getField(), fieldError.getDefaultMessage());
+        }
 
-        ErrorResponse error = new ErrorResponse(
+        log.warn("Validation failed at path: {} - errors: {}", request.getRequestURI(), fieldErrors);
+
+        ValidationErrorResponse error = new ValidationErrorResponse(
                 HttpStatus.BAD_REQUEST.value(),
-                message,
+                "Validation failed",
                 request.getRequestURI(),
-                LocalDateTime.now()
+                LocalDateTime.now(),
+                fieldErrors
         );
-
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(error);
     }
 
@@ -68,13 +77,14 @@ public class GlobalExceptionHandler {
             Exception ex,
             HttpServletRequest request) {
 
+        log.error("Unexpected error at path: {} - message: {}", request.getRequestURI(), ex.getMessage(), ex);
+
         ErrorResponse error = new ErrorResponse(
                 HttpStatus.INTERNAL_SERVER_ERROR.value(),
                 "Something went wrong",
                 request.getRequestURI(),
                 LocalDateTime.now()
         );
-
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(error);
     }
 }

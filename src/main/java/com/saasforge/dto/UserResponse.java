@@ -8,9 +8,9 @@ import lombok.Getter;
 public class UserResponse {
 
     private Long id;
-    private Long tenantId;
     private String name;
     private String email;
     private String status;
+    private Long tenantId;
     private String roleName;
 }

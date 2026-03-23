@@ -1,5 +1,6 @@
 package com.saasforge.controller;
 
+import com.saasforge.dto.PageResponse;
 import com.saasforge.dto.TenantRegistrationRequest;
 import com.saasforge.dto.TenantResponse;
 import com.saasforge.dto.UpdateTenantRequest;
@@ -9,16 +10,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.web.bind.annotation.DeleteMapping;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.PutMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
-
-import java.util.List;
+import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping("/api/tenants")
@@ -35,9 +27,13 @@ public class TenantController {
     }
 
     @GetMapping
-    public ResponseEntity<List<TenantResponse>> getAllTenants() {
-        return ResponseEntity.ok(tenantService.getAllTenants());
+    public ResponseEntity<PageResponse<TenantResponse>> getAllTenants(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size,
+            @RequestParam(defaultValue = "id") String sortBy) {
+        return ResponseEntity.ok(tenantService.getAllTenants(page, size, sortBy));
     }
+
 
     @GetMapping("/{id}")
     public ResponseEntity<TenantResponse> getTenantById(@PathVariable Long id) {

@@ -1,5 +1,6 @@
 package com.saasforge.controller;
 
+import com.saasforge.dto.PageResponse;
 import com.saasforge.dto.UpdateUserRequest;
 import com.saasforge.dto.UserResponse;
 import com.saasforge.service.UserService;
@@ -12,9 +13,8 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
-
-import java.util.List;
 
 @RestController
 @RequestMapping("/api/users")
@@ -24,8 +24,11 @@ public class UserController {
     private final UserService userService;
 
     @GetMapping
-    public ResponseEntity<List<UserResponse>> getAllUsers() {
-        return ResponseEntity.ok(userService.getAllUsers());
+    public ResponseEntity<PageResponse<UserResponse>> getAllUsers(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size,
+            @RequestParam(defaultValue = "id") String sortBy) {
+        return ResponseEntity.ok(userService.getAllUsers(page, size, sortBy));
     }
 
     @GetMapping("/{id}")

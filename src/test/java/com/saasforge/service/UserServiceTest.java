@@ -1,5 +1,6 @@
 package com.saasforge.service;
 
+import com.saasforge.dto.PageResponse;
 import com.saasforge.dto.UpdateUserRequest;
 import com.saasforge.dto.UserResponse;
 import com.saasforge.entity.SystemRole;
@@ -13,12 +14,16 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.Pageable;
 
 import java.util.List;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
@@ -47,26 +52,62 @@ class UserServiceTest {
         return user;
     }
 
+    // ── getAllUsers ────────────────────────────────────────────────────────────
+
     @Test
-    void getAllUsers_returnsListOfUserResponses() {
-        when(userRepository.findAll()).thenReturn(List.of(
+    void getAllUsers_returnsPaginatedResponse() {
+        Page<User> userPage = new PageImpl<>(List.of(
                 buildUser(1L, "Alice", "alice@test.com"),
                 buildUser(2L, "Bob", "bob@test.com")
         ));
+        when(userRepository.findAll(any(Pageable.class))).thenReturn(userPage);
 
-        List<UserResponse> result = userService.getAllUsers();
+        PageResponse<UserResponse> result = userService.getAllUsers(0, 10, "id");
 
-        assertThat(result).hasSize(2);
-        assertThat(result.get(0).getEmail()).isEqualTo("alice@test.com");
-        assertThat(result.get(1).getEmail()).isEqualTo("bob@test.com");
+        assertThat(result.getContent()).hasSize(2);
+        assertThat(result.getContent().get(0).getEmail()).isEqualTo("alice@test.com");
+        assertThat(result.getContent().get(1).getEmail()).isEqualTo("bob@test.com");
     }
 
     @Test
-    void getAllUsers_returnsEmptyList_whenNoUsers() {
-        when(userRepository.findAll()).thenReturn(List.of());
+    void getAllUsers_returnsEmptyPage_whenNoUsers() {
+        when(userRepository.findAll(any(Pageable.class))).thenReturn(Page.empty());
 
-        assertThat(userService.getAllUsers()).isEmpty();
+        PageResponse<UserResponse> result = userService.getAllUsers(0, 10, "id");
+
+        assertThat(result.getContent()).isEmpty();
+        assertThat(result.getTotalElements()).isZero();
     }
+
+    @Test
+    void getAllUsers_passesCorrectPageableToRepository() {
+        when(userRepository.findAll(any(Pageable.class))).thenReturn(Page.empty());
+
+        userService.getAllUsers(2, 5, "name");
+
+        ArgumentCaptor<Pageable> captor = ArgumentCaptor.forClass(Pageable.class);
+        verify(userRepository).findAll(captor.capture());
+        assertThat(captor.getValue().getPageNumber()).isEqualTo(2);
+        assertThat(captor.getValue().getPageSize()).isEqualTo(5);
+        assertThat(captor.getValue().getSort().getOrderFor("name")).isNotNull();
+    }
+
+    @Test
+    void getAllUsers_returnsPaginationMetadata() {
+        List<User> users = List.of(buildUser(1L, "Alice", "alice@test.com"));
+        Page<User> userPage = new PageImpl<>(users, org.springframework.data.domain.PageRequest.of(0, 5), 1);
+        when(userRepository.findAll(any(Pageable.class))).thenReturn(userPage);
+
+        PageResponse<UserResponse> result = userService.getAllUsers(0, 5, "id");
+
+        assertThat(result.getTotalElements()).isEqualTo(1);
+        assertThat(result.getTotalPages()).isEqualTo(1);
+        assertThat(result.isLast()).isTrue();
+        assertThat(result.getSize()).isEqualTo(5);
+        assertThat(result.getPage()).isZero();
+    }
+
+    // ── getUserById ───────────────────────────────────────────────────────────
 
     @Test
     void getUserById_found_returnsUserResponse() {
@@ -77,6 +118,7 @@ class UserServiceTest {
         assertThat(response.getId()).isEqualTo(1L);
         assertThat(response.getName()).isEqualTo("Alice");
         assertThat(response.getEmail()).isEqualTo("alice@test.com");
+        assertThat(response.getStatus()).isEqualTo("ACTIVE");
         assertThat(response.getRoleName()).isEqualTo("ADMIN");
         assertThat(response.getTenantId()).isEqualTo(1L);
     }
@@ -89,6 +131,8 @@ class UserServiceTest {
                 .isInstanceOf(ResourceNotFoundException.class)
                 .hasMessageContaining("99");
     }
+
+    // ── updateUser ────────────────────────────────────────────────────────────
 
     @Test
     void updateUser_success_updatesNameAndStatus() {
@@ -104,6 +148,23 @@ class UserServiceTest {
 
         assertThat(response.getName()).isEqualTo("New Name");
         assertThat(response.getStatus()).isEqualTo("INACTIVE");
+    }
+
+    @Test
+    void updateUser_doesNotModifyEmailOrTenantOrRole() {
+        User existing = buildUser(1L, "Name", "original@test.com");
+        when(userRepository.findById(1L)).thenReturn(Optional.of(existing));
+        when(userRepository.save(any(User.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        UpdateUserRequest request = new UpdateUserRequest();
+        request.setName("Name");
+        request.setStatus("ACTIVE");
+
+        UserResponse response = userService.updateUser(1L, request);
+
+        assertThat(response.getEmail()).isEqualTo("original@test.com");
+        assertThat(response.getTenantId()).isEqualTo(1L);
+        assertThat(response.getRoleName()).isEqualTo("ADMIN");
     }
 
     @Test
@@ -136,6 +197,8 @@ class UserServiceTest {
                 .hasMessageContaining("99");
     }
 
+    // ── deleteUser ────────────────────────────────────────────────────────────
+
     @Test
     void deleteUser_success_callsDelete() {
         User user = buildUser(1L, "Alice", "alice@test.com");
@@ -153,5 +216,15 @@ class UserServiceTest {
         assertThatThrownBy(() -> userService.deleteUser(99L))
                 .isInstanceOf(ResourceNotFoundException.class)
                 .hasMessageContaining("99");
+    }
+
+    @Test
+    void deleteUser_notFound_doesNotCallDelete() {
+        when(userRepository.findById(99L)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> userService.deleteUser(99L))
+                .isInstanceOf(ResourceNotFoundException.class);
+
+        verify(userRepository, never()).delete(any(User.class));
     }
 }
