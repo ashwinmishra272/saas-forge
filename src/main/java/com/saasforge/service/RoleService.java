@@ -63,7 +63,6 @@ public class RoleService {
         role.setName(request.getName());
         role.setRoleKey(request.getRoleKey());
         role.setTenant(tenant);
-        role.setCreatedAt(LocalDateTime.now());
 
         SystemRole saved = roleRepository.save(role);
         log.info("Role created id={}", saved.getId());

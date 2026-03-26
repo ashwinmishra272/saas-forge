@@ -186,20 +186,21 @@ class UserServiceTest {
     }
 
     @Test
-    void updateUser_setsUpdatedAt() {
-        User existing = buildUser(1L, "Name", "user@test.com");
+    void updateUser_savesEntityWithUpdatedFields() {
+        User existing = buildUser(1L, "OldName", "user@test.com");
         when(userRepository.findByIdAndTenantId(1L, TENANT_ID)).thenReturn(Optional.of(existing));
         when(userRepository.save(any(User.class))).thenAnswer(inv -> inv.getArgument(0));
 
         UpdateUserRequest request = new UpdateUserRequest();
-        request.setName("Name");
-        request.setStatus("ACTIVE");
+        request.setName("NewName");
+        request.setStatus("INACTIVE");
 
         userService.updateUser(1L, request);
 
         ArgumentCaptor<User> captor = ArgumentCaptor.forClass(User.class);
         verify(userRepository).save(captor.capture());
-        assertThat(captor.getValue().getUpdatedAt()).isNotNull();
+        assertThat(captor.getValue().getName()).isEqualTo("NewName");
+        assertThat(captor.getValue().getStatus()).isEqualTo("INACTIVE");
     }
 
     @Test

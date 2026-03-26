@@ -1,7 +1,9 @@
 package com.saasforge.controller;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.saasforge.dto.AuthResponse;
 import com.saasforge.dto.LoginRequest;
+import com.saasforge.dto.RefreshTokenRequest;
 import com.saasforge.exception.BadRequestException;
 import com.saasforge.exception.GlobalExceptionHandler;
 import com.saasforge.exception.ResourceNotFoundException;
@@ -41,22 +43,30 @@ class AuthControllerTest {
                 .build();
     }
 
-    private LoginRequest validRequest() {
+    private LoginRequest validLoginRequest() {
         LoginRequest req = new LoginRequest();
         req.setEmail("admin@test.com");
         req.setPassword("password123");
         return req;
     }
 
+    private AuthResponse sampleAuthResponse() {
+        return new AuthResponse("access-token", "refresh-token");
+    }
+
+    // ── POST /api/auth/login ──────────────────────────────────────────────────
+
     @Test
-    void login_validCredentials_returns200WithToken() throws Exception {
-        when(authService.login(any())).thenReturn("mock-jwt-token");
+    void login_validCredentials_returns200WithTokens() throws Exception {
+        when(authService.login(any())).thenReturn(sampleAuthResponse());
 
         mockMvc.perform(post("/api/auth/login")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(validRequest())))
+                        .content(objectMapper.writeValueAsString(validLoginRequest())))
                 .andExpect(status().isOk())
-                .andExpect(content().string("mock-jwt-token"));
+                .andExpect(jsonPath("$.accessToken").value("access-token"))
+                .andExpect(jsonPath("$.refreshToken").value("refresh-token"))
+                .andExpect(jsonPath("$.tokenType").value("Bearer"));
     }
 
     @Test
@@ -65,7 +75,7 @@ class AuthControllerTest {
 
         mockMvc.perform(post("/api/auth/login")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(validRequest())))
+                        .content(objectMapper.writeValueAsString(validLoginRequest())))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.error").value("User not found"));
     }
@@ -76,7 +86,7 @@ class AuthControllerTest {
 
         mockMvc.perform(post("/api/auth/login")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(validRequest())))
+                        .content(objectMapper.writeValueAsString(validLoginRequest())))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.error").value("Invalid credentials"));
     }
@@ -100,6 +110,99 @@ class AuthControllerTest {
         req.setPassword("");
 
         mockMvc.perform(post("/api/auth/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(req)))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void login_nullEmail_returns400() throws Exception {
+        LoginRequest req = new LoginRequest();
+        req.setEmail(null);
+        req.setPassword("password123");
+
+        mockMvc.perform(post("/api/auth/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(req)))
+                .andExpect(status().isBadRequest());
+    }
+
+    // ── POST /api/auth/refresh ────────────────────────────────────────────────
+
+    @Test
+    void refresh_validToken_returns200WithNewTokens() throws Exception {
+        when(authService.refresh(any())).thenReturn(new AuthResponse("new-access", "new-refresh"));
+
+        RefreshTokenRequest req = new RefreshTokenRequest();
+        req.setRefreshToken("old-refresh-token");
+
+        mockMvc.perform(post("/api/auth/refresh")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(req)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.accessToken").value("new-access"))
+                .andExpect(jsonPath("$.refreshToken").value("new-refresh"));
+    }
+
+    @Test
+    void refresh_invalidToken_returns400() throws Exception {
+        when(authService.refresh(any())).thenThrow(new BadRequestException("Invalid refresh token"));
+
+        RefreshTokenRequest req = new RefreshTokenRequest();
+        req.setRefreshToken("bad-token");
+
+        mockMvc.perform(post("/api/auth/refresh")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(req)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error").value("Invalid refresh token"));
+    }
+
+    @Test
+    void refresh_revokedToken_returns400() throws Exception {
+        when(authService.refresh(any())).thenThrow(new BadRequestException("Refresh token has been revoked"));
+
+        RefreshTokenRequest req = new RefreshTokenRequest();
+        req.setRefreshToken("revoked-token");
+
+        mockMvc.perform(post("/api/auth/refresh")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(req)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error").value("Refresh token has been revoked"));
+    }
+
+    @Test
+    void refresh_expiredToken_returns400() throws Exception {
+        when(authService.refresh(any())).thenThrow(new BadRequestException("Refresh token has expired"));
+
+        RefreshTokenRequest req = new RefreshTokenRequest();
+        req.setRefreshToken("expired-token");
+
+        mockMvc.perform(post("/api/auth/refresh")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(req)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error").value("Refresh token has expired"));
+    }
+
+    @Test
+    void refresh_blankToken_returns400() throws Exception {
+        RefreshTokenRequest req = new RefreshTokenRequest();
+        req.setRefreshToken("");
+
+        mockMvc.perform(post("/api/auth/refresh")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(req)))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void refresh_nullToken_returns400() throws Exception {
+        RefreshTokenRequest req = new RefreshTokenRequest();
+        req.setRefreshToken(null);
+
+        mockMvc.perform(post("/api/auth/refresh")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(req)))
                 .andExpect(status().isBadRequest());

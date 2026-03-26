@@ -5,9 +5,6 @@ import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
-import jakarta.persistence.Id;
-
-import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "tenants")
@@ -15,7 +12,7 @@ import java.time.LocalDateTime;
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
-public class Tenant {
+public class Tenant extends BaseEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -28,7 +25,4 @@ public class Tenant {
     private String tenantKey;
 
     private String status;
-
-    private LocalDateTime createdAt;
 }
-

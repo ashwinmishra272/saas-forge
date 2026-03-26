@@ -169,24 +169,9 @@ POST /api/auth/login
 - Build a **production-ready SaaS backend**
 - Handle **multi-tenant scaling**
 - Add **real-world complexity**
-- Become **interview-ready backend engineer**
 
 ---
 
-## 💡 Why This Project Matters
-
-Most candidates build:
-
-- CRUD apps ❌
-- Basic REST APIs ❌
-
-This project focuses on:
-
-- Real backend challenges ✅
-- Security + architecture ✅
-- Scalable system design ✅
-
----
 
 ## 👨‍💻 Author
 

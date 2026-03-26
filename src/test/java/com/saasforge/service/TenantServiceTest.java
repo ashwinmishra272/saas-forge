@@ -24,7 +24,6 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
-import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
@@ -71,7 +70,6 @@ class TenantServiceTest {
         Tenant saved = tenantCaptor.getValue();
         assertThat(saved.getName()).isEqualTo("Acme Corp");
         assertThat(saved.getStatus()).isEqualTo("ACTIVE");
-        assertThat(saved.getCreatedAt()).isNotNull();
     }
 
     @Test
@@ -273,7 +271,6 @@ class TenantServiceTest {
         tenant.setName(name);
         tenant.setTenantKey(key);
         tenant.setStatus(status);
-        tenant.setCreatedAt(LocalDateTime.now());
         return tenant;
     }
 }

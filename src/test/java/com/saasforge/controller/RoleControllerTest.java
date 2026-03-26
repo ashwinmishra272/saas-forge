@@ -20,6 +20,7 @@ import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
 import java.util.List;
 
+import static org.hamcrest.Matchers.hasSize;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
@@ -73,6 +74,19 @@ class RoleControllerTest {
         mockMvc.perform(get("/api/roles"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.length()").value(0));
+    }
+
+    @Test
+    void getAllRoles_mapsAllFieldsInListItems() throws Exception {
+        when(roleService.getAllRoles()).thenReturn(List.of(sampleRole(7L, "Manager", "MANAGER")));
+
+        mockMvc.perform(get("/api/roles"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$", hasSize(1)))
+                .andExpect(jsonPath("$[0].id").value(7))
+                .andExpect(jsonPath("$[0].name").value("Manager"))
+                .andExpect(jsonPath("$[0].roleKey").value("MANAGER"))
+                .andExpect(jsonPath("$[0].tenantId").value(1));
     }
 
     // ── GET /api/roles/{id} ───────────────────────────────────────────────────
@@ -129,6 +143,18 @@ class RoleControllerTest {
     }
 
     @Test
+    void createRole_nullName_returns400() throws Exception {
+        CreateRoleRequest request = new CreateRoleRequest();
+        request.setName(null);
+        request.setRoleKey("EDITOR");
+
+        mockMvc.perform(post("/api/roles")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
     void createRole_blankRoleKey_returns400() throws Exception {
         CreateRoleRequest request = new CreateRoleRequest();
         request.setName("Editor");
@@ -138,6 +164,33 @@ class RoleControllerTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void createRole_nullRoleKey_returns400() throws Exception {
+        CreateRoleRequest request = new CreateRoleRequest();
+        request.setName("Editor");
+        request.setRoleKey(null);
+
+        mockMvc.perform(post("/api/roles")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void createRole_tenantNotFound_returns404() throws Exception {
+        CreateRoleRequest request = new CreateRoleRequest();
+        request.setName("Editor");
+        request.setRoleKey("EDITOR");
+
+        when(roleService.createRole(any())).thenThrow(new ResourceNotFoundException("Tenant not found"));
+
+        mockMvc.perform(post("/api/roles")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.error").value("Tenant not found"));
     }
 
     @Test
@@ -192,6 +245,33 @@ class RoleControllerTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void updateRole_nullName_returns400() throws Exception {
+        UpdateRoleRequest request = new UpdateRoleRequest();
+        request.setName(null);
+
+        mockMvc.perform(put("/api/roles/1")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void updateRole_passesCorrectIdToService() throws Exception {
+        UpdateRoleRequest request = new UpdateRoleRequest();
+        request.setName("Updated");
+
+        when(roleService.updateRole(eq(5L), any())).thenReturn(sampleRole(5L, "Updated", "VIEWER"));
+
+        mockMvc.perform(put("/api/roles/5")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.id").value(5));
+
+        verify(roleService).updateRole(eq(5L), any());
     }
 
     @Test

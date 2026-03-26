@@ -155,7 +155,7 @@ class RoleServiceTest {
     }
 
     @Test
-    void createRole_setsCreatedAtAndTenant() {
+    void createRole_setsTenantOnSavedEntity() {
         when(tenantRepository.findById(TENANT_ID)).thenReturn(Optional.of(buildTenant()));
         when(roleRepository.existsByRoleKeyAndTenantId(anyString(), eq(TENANT_ID))).thenReturn(false);
         when(roleRepository.save(any(SystemRole.class))).thenAnswer(inv -> inv.getArgument(0));
@@ -169,9 +169,7 @@ class RoleServiceTest {
         ArgumentCaptor<SystemRole> captor = ArgumentCaptor.forClass(SystemRole.class);
         verify(roleRepository).save(captor.capture());
 
-        SystemRole saved = captor.getValue();
-        assertThat(saved.getCreatedAt()).isNotNull();
-        assertThat(saved.getTenant().getId()).isEqualTo(TENANT_ID);
+        assertThat(captor.getValue().getTenant().getId()).isEqualTo(TENANT_ID);
     }
 
     @Test
@@ -273,5 +271,60 @@ class RoleServiceTest {
                 .isInstanceOf(ResourceNotFoundException.class);
 
         verify(roleRepository, never()).delete(any(SystemRole.class));
+    }
+
+    @Test
+    void deleteRole_usesCurrentTenantIdFromContext() {
+        SystemRole role = buildRole(1L, "Admin", "ADMIN");
+        when(roleRepository.findByIdAndTenantId(1L, TENANT_ID)).thenReturn(Optional.of(role));
+
+        roleService.deleteRole(1L);
+
+        verify(roleRepository).findByIdAndTenantId(1L, TENANT_ID);
+    }
+
+    // ── tenant isolation ──────────────────────────────────────────────────────
+
+    @Test
+    void getAllRoles_usesCurrentTenantIdFromContext() {
+        when(roleRepository.findByTenantId(TENANT_ID)).thenReturn(List.of());
+
+        roleService.getAllRoles();
+
+        verify(roleRepository).findByTenantId(TENANT_ID);
+        verify(roleRepository, never()).findByTenantId(argThat(id -> !id.equals(TENANT_ID)));
+    }
+
+    @Test
+    void createRole_doesNotCallSave_whenDuplicateKeyExists() {
+        when(tenantRepository.findById(TENANT_ID)).thenReturn(Optional.of(buildTenant()));
+        when(roleRepository.existsByRoleKeyAndTenantId("ADMIN", TENANT_ID)).thenReturn(true);
+
+        CreateRoleRequest request = new CreateRoleRequest();
+        request.setName("Admin");
+        request.setRoleKey("ADMIN");
+
+        assertThatThrownBy(() -> roleService.createRole(request))
+                .isInstanceOf(BadRequestException.class);
+
+        verify(roleRepository, never()).save(any(SystemRole.class));
+    }
+
+    @Test
+    void updateRole_savesEntityWithUpdatedName() {
+        SystemRole existing = buildRole(1L, "OldName", "ADMIN");
+        when(roleRepository.findByIdAndTenantId(1L, TENANT_ID)).thenReturn(Optional.of(existing));
+        when(roleRepository.save(any(SystemRole.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        UpdateRoleRequest request = new UpdateRoleRequest();
+        request.setName("NewName");
+
+        roleService.updateRole(1L, request);
+
+        ArgumentCaptor<SystemRole> captor = ArgumentCaptor.forClass(SystemRole.class);
+        verify(roleRepository).save(captor.capture());
+        assertThat(captor.getValue().getName()).isEqualTo("NewName");
+        assertThat(captor.getValue().getRoleKey()).isEqualTo("ADMIN");
+        assertThat(captor.getValue().getId()).isEqualTo(1L);
     }
 }

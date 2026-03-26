@@ -56,7 +56,6 @@ public class UserService {
 
         user.setName(request.getName());
         user.setStatus(request.getStatus());
-        user.setUpdatedAt(LocalDateTime.now());
 
         User saved = userRepository.save(user);
         log.info("User updated id={}", saved.getId());

@@ -48,14 +48,12 @@ public class TenantService {
         tenant.setName(request.getTenantName());
         tenant.setTenantKey(request.getTenantName().toLowerCase().replace(" ", "_"));
         tenant.setStatus("ACTIVE");
-        tenant.setCreatedAt(LocalDateTime.now());
         tenantRepository.save(tenant);
 
         SystemRole adminRole = new SystemRole();
         adminRole.setName("ADMIN");
         adminRole.setRoleKey("ADMIN");
         adminRole.setTenant(tenant);
-        adminRole.setCreatedAt(LocalDateTime.now());
         roleRepository.save(adminRole);
 
         User adminUser = new User();
@@ -65,8 +63,6 @@ public class TenantService {
         adminUser.setTenant(tenant);
         adminUser.setRole(adminRole);
         adminUser.setStatus("ACTIVE");
-        adminUser.setCreatedAt(LocalDateTime.now());
-        adminUser.setUpdatedAt(LocalDateTime.now());
         userRepository.save(adminUser);
 
         log.info("Tenant registered successfully: {} (id={})", tenant.getName(), tenant.getId());
