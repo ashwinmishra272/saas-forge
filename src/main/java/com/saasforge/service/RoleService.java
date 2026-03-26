@@ -9,8 +9,10 @@ import com.saasforge.exception.BadRequestException;
 import com.saasforge.exception.ResourceNotFoundException;
 import com.saasforge.repository.RoleRepository;
 import com.saasforge.repository.TenantRepository;
+import com.saasforge.security.TenantContext;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
@@ -24,36 +26,37 @@ public class RoleService {
     private final RoleRepository roleRepository;
     private final TenantRepository tenantRepository;
 
+    @PreAuthorize("hasRole('ADMIN')")
     public List<RoleResponse> getAllRoles() {
-        log.info("Fetching all roles");
-        return roleRepository.findAll()
+        Long tenantId = TenantContext.getCurrentTenantId();
+        log.info("Fetching all roles for tenantId={}", tenantId);
+
+        return roleRepository.findByTenantId(tenantId)
                 .stream()
                 .map(this::toResponse)
                 .toList();
     }
 
+    @PreAuthorize("hasRole('ADMIN')")
     public RoleResponse getRoleById(Long id) {
-        log.info("Fetching role with id: {}", id);
-        SystemRole role = roleRepository.findById(id)
-                .orElseThrow(() -> {
-                    log.warn("Role not found with id: {}", id);
-                    return new ResourceNotFoundException("Role not found with id: " + id);
-                });
+        Long tenantId = TenantContext.getCurrentTenantId();
+
+        SystemRole role = roleRepository.findByIdAndTenantId(id, tenantId)
+                .orElseThrow(() -> new ResourceNotFoundException("Role not found with id: " + id));
+
         return toResponse(role);
     }
 
+    @PreAuthorize("hasRole('ADMIN')")
     public RoleResponse createRole(CreateRoleRequest request) {
-        log.info("Creating role: {} for tenantId: {}", request.getRoleKey(), request.getTenantId());
+        Long tenantId = TenantContext.getCurrentTenantId();
+        log.info("Creating role: {} for tenantId={}", request.getRoleKey(), tenantId);
 
-        Tenant tenant = tenantRepository.findById(request.getTenantId())
-                .orElseThrow(() -> {
-                    log.warn("Tenant not found with id: {}", request.getTenantId());
-                    return new ResourceNotFoundException("Tenant not found with id: " + request.getTenantId());
-                });
+        Tenant tenant = tenantRepository.findById(tenantId)
+                .orElseThrow(() -> new ResourceNotFoundException("Tenant not found"));
 
-        if (roleRepository.existsByRoleKeyAndTenantId(request.getRoleKey(), request.getTenantId())) {
-            log.warn("Role creation failed - key already exists: {} in tenant: {}", request.getRoleKey(), request.getTenantId());
-            throw new BadRequestException("Role with key '" + request.getRoleKey() + "' already exists in this tenant");
+        if (roleRepository.existsByRoleKeyAndTenantId(request.getRoleKey(), tenantId)) {
+            throw new BadRequestException("Role with key '" + request.getRoleKey() + "' already exists");
         }
 
         SystemRole role = new SystemRole();
@@ -63,34 +66,32 @@ public class RoleService {
         role.setCreatedAt(LocalDateTime.now());
 
         SystemRole saved = roleRepository.save(role);
-        log.info("Role created successfully: {} (id={})", saved.getRoleKey(), saved.getId());
+        log.info("Role created id={}", saved.getId());
         return toResponse(saved);
     }
 
+    @PreAuthorize("hasRole('ADMIN')")
     public RoleResponse updateRole(Long id, UpdateRoleRequest request) {
-        log.info("Updating role with id: {}", id);
-        SystemRole role = roleRepository.findById(id)
-                .orElseThrow(() -> {
-                    log.warn("Role not found with id: {}", id);
-                    return new ResourceNotFoundException("Role not found with id: " + id);
-                });
+        Long tenantId = TenantContext.getCurrentTenantId();
+
+        SystemRole role = roleRepository.findByIdAndTenantId(id, tenantId)
+                .orElseThrow(() -> new ResourceNotFoundException("Role not found with id: " + id));
 
         role.setName(request.getName());
-
         SystemRole saved = roleRepository.save(role);
-        log.info("Role updated successfully: {}", saved.getId());
+        log.info("Role updated id={}", saved.getId());
         return toResponse(saved);
     }
 
+    @PreAuthorize("hasRole('ADMIN')")
     public void deleteRole(Long id) {
-        log.info("Deleting role with id: {}", id);
-        SystemRole role = roleRepository.findById(id)
-                .orElseThrow(() -> {
-                    log.warn("Role not found with id: {}", id);
-                    return new ResourceNotFoundException("Role not found with id: " + id);
-                });
+        Long tenantId = TenantContext.getCurrentTenantId();
+
+        SystemRole role = roleRepository.findByIdAndTenantId(id, tenantId)
+                .orElseThrow(() -> new ResourceNotFoundException("Role not found with id: " + id));
+
         roleRepository.delete(role);
-        log.info("Role deleted successfully: {}", id);
+        log.info("Role deleted id={}", id);
     }
 
     private RoleResponse toResponse(SystemRole role) {

@@ -19,6 +19,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
@@ -71,6 +72,7 @@ public class TenantService {
         log.info("Tenant registered successfully: {} (id={})", tenant.getName(), tenant.getId());
     }
 
+    @PreAuthorize("hasRole('ADMIN')")
     public PageResponse<TenantResponse> getAllTenants(int page, int size, String sortBy) {
         log.info("Fetching tenants - page={}, size={}, sortBy={}", page, size, sortBy);
         Pageable pageable = PageRequest.of(page, size, Sort.by(sortBy).ascending());
@@ -79,6 +81,7 @@ public class TenantService {
         return new PageResponse<>(responsePage);
     }
 
+    @PreAuthorize("hasRole('ADMIN')")
     public TenantResponse getTenantById(Long id) {
         log.info("Fetching tenant with id: {}", id);
         Tenant tenant = tenantRepository.findById(id)
@@ -89,6 +92,7 @@ public class TenantService {
         return toResponse(tenant);
     }
 
+    @PreAuthorize("hasRole('ADMIN')")
     public TenantResponse updateTenant(Long id, UpdateTenantRequest request) {
         log.info("Updating tenant with id: {}", id);
         Tenant tenant = tenantRepository.findById(id)
@@ -105,6 +109,7 @@ public class TenantService {
         return toResponse(saved);
     }
 
+    @PreAuthorize("hasRole('ADMIN')")
     public void deleteTenant(Long id) {
         log.info("Deleting tenant with id: {}", id);
         Tenant tenant = tenantRepository.findById(id)
