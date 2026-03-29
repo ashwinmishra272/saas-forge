@@ -1,12 +1,14 @@
 package com.saasforge.repository;
 
 import com.saasforge.entity.User;
+import org.hibernate.annotations.SQLRestriction;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.util.Optional;
 
+@SQLRestriction("deleted = false")
 public interface UserRepository extends JpaRepository<User, Long> {
 
     Optional<User> findByEmail(String email);

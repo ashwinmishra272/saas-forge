@@ -85,12 +85,16 @@ public class RoleService {
     @PreAuthorize("hasRole('ADMIN')")
     public void deleteRole(Long id) {
         Long tenantId = TenantContext.getCurrentTenantId();
+        log.info("Soft deleting role id={} tenantId={}", id, tenantId);
 
         SystemRole role = roleRepository.findByIdAndTenantId(id, tenantId)
                 .orElseThrow(() -> new ResourceNotFoundException("Role not found with id: " + id));
 
-        roleRepository.delete(role);
-        log.info("Role deleted id={}", id);
+        role.setDeleted(true);
+        role.setDeletedAt(LocalDateTime.now());
+        roleRepository.save(role);
+
+        log.info("Role soft deleted id={}", id);
     }
 
     private RoleResponse toResponse(SystemRole role) {

@@ -107,15 +107,21 @@ public class TenantService {
 
     @PreAuthorize("hasRole('ADMIN')")
     public void deleteTenant(Long id) {
-        log.info("Deleting tenant with id: {}", id);
+        log.info("Soft deleting tenant id={}", id);
+
         Tenant tenant = tenantRepository.findById(id)
                 .orElseThrow(() -> {
-                    log.warn("Tenant not found with id: {}", id);
+                    log.warn("Tenant not found id={}", id);
                     return new ResourceNotFoundException("Tenant not found with id: " + id);
                 });
-        tenantRepository.delete(tenant);
-        log.info("Tenant deleted successfully: {}", id);
+
+        tenant.setDeleted(true);
+        tenant.setDeletedAt(LocalDateTime.now());
+        tenantRepository.save(tenant);
+
+        log.info("Tenant soft deleted id={}", id);
     }
+
 
     private TenantResponse toResponse(Tenant tenant) {
         return new TenantResponse(

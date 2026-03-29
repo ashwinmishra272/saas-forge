@@ -65,13 +65,16 @@ public class UserService {
     @PreAuthorize("hasRole('ADMIN')")
     public void deleteUser(Long id) {
         Long tenantId = TenantContext.getCurrentTenantId();
-        log.info("Deleting user id={} tenantId={}", id, tenantId);
+        log.info("Soft deleting user id={} tenantId={}", id, tenantId);
 
         User user = userRepository.findByIdAndTenantId(id, tenantId)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found with id: " + id));
 
-        userRepository.delete(user);
-        log.info("User deleted id={}", id);
+        user.setDeleted(true);
+        user.setDeletedAt(LocalDateTime.now());
+        userRepository.save(user);
+
+        log.info("User soft deleted id={}", id);
     }
 
     private UserResponse toResponse(User user) {
