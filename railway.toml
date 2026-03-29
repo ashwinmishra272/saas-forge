@@ -1,0 +1,8 @@
+[build]
+builder = "nixpacks"
+buildCommand = "./gradlew clean build -x test"
+
+[deploy]
+startCommand = "java -jar build/libs/saasforge-platform-0.0.1-SNAPSHOT.jar"
+healthcheckPath = "/actuator/health"
+restartPolicyType = "on_failure"
