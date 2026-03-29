@@ -1,6 +1,7 @@
 package com.saasforge.service;
 
 import com.saasforge.dto.AuthResponse;
+import com.saasforge.dto.ChangePasswordRequest;
 import com.saasforge.dto.LoginRequest;
 import com.saasforge.dto.RefreshTokenRequest;
 import com.saasforge.entity.RefreshToken;
@@ -11,6 +12,8 @@ import com.saasforge.repository.UserRepository;
 import com.saasforge.security.JwtService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
@@ -55,7 +58,6 @@ public class AuthService {
         log.info("Refresh token request received");
 
         RefreshToken newRefreshToken = refreshTokenService.validateAndRotate(request.getRefreshToken());
-
         User user = newRefreshToken.getUser();
 
         String accessToken = jwtService.generateToken(
@@ -67,5 +69,30 @@ public class AuthService {
 
         log.info("Token refreshed for userId={}", user.getId());
         return new AuthResponse(accessToken, newRefreshToken.getToken());
+    }
+
+    public void changePassword(ChangePasswordRequest request) {
+
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        String email = (String) authentication.getPrincipal();
+
+        log.info("Change password request for email: {}", email);
+
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
+
+        if (!passwordEncoder.matches(request.getCurrentPassword(), user.getPassword())) {
+            log.warn("Change password failed - wrong current password for: {}", email);
+            throw new BadRequestException("Current password is incorrect");
+        }
+
+        if (passwordEncoder.matches(request.getNewPassword(), user.getPassword())) {
+            throw new BadRequestException("New password must be different from current password");
+        }
+
+        user.setPassword(passwordEncoder.encode(request.getNewPassword()));
+        userRepository.save(user);
+
+        log.info("Password changed successfully for email: {}", email);
     }
 }
