@@ -1,10 +1,10 @@
-# 🚀 SaaSForge Platform
+# SaaSForge Platform
 
 A **multi-tenant SaaS backend platform** built using **Spring Boot**, designed to simulate real-world production systems with authentication, tenant isolation, and scalable architecture.
 
 ---
 
-## 📌 Vision
+## Vision
 
 SaaSForge is being built to:
 
@@ -15,19 +15,7 @@ SaaSForge is being built to:
 
 ---
 
-## 🧠 What This Project Demonstrates
-
-- Multi-tenant architecture
-- Authentication & Authorization (JWT)
-- Role-based access control (RBAC)
-- Clean layered architecture (Controller → Service → Repository)
-- Secure password handling (BCrypt)
-- Database design with relationships
-- Production mindset (scalability, modularity)
-
----
-
-## 🏗️ Tech Stack
+## Tech Stack
 
 - **Backend:** Spring Boot (Java)
 - **Database:** PostgreSQL
@@ -38,56 +26,24 @@ SaaSForge is being built to:
 
 ---
 
-## 🧩 Current Features
-
-### ✅ Tenant Management
-- Register new tenant
-- Unique tenant key generation
-
-### ✅ User Management
-- Create admin user during tenant registration
-- Associate users with tenant and role
-
-### ✅ Role Management
-- System roles (ADMIN, USER)
-
-### ✅ Authentication
-- Login API
-- JWT token generation
-
-### ✅ Security
-- Password hashing using BCrypt
-- Spring Security basic config
-
----
-
-## 🔐 Authentication Flow
-
-1. User registers → Tenant + Admin created
-2. User logs in → receives JWT token
-3. Token will be used to access protected APIs
-
-Upcoming:
-- JWT validation filter
-- Security context handling
-- Role-based authorization
-
----
-
-## 🧱 Architecture
+## Architecture
 
 ```
 Controller → Service → Repository → Database
 ```
 
-- Controller: Handles API requests
-- Service: Business logic
-- Repository: DB interaction
-- Entity: Database models
+| Layer | Responsibility |
+|-------|---------------|
+| Controller | REST API endpoints |
+| Service | Business logic |
+| Repository | Database interaction |
+| Entity | JPA models |
+| Security | JWT + Filters |
+| DTO | Request/Response models |
 
 ---
 
-## 📂 Project Structure
+## Project Structure
 
 ```
 com.saasforge
@@ -103,83 +59,102 @@ com.saasforge
 
 ---
 
-## ⚙️ Setup Instructions
+## Implemented Features
 
-### 1. Clone Repository
-```
-git clone <your-repo-url>
-```
+### Tenant Management
+- Register new tenant with unique key generation
+- Full CRUD operations (create, read, update, delete)
+- Tenant-specific data isolation via `TenantContext`
 
-### 2. Configure Database
-```
-spring.datasource.url=jdbc:postgresql://localhost:5432/saasforge
-spring.datasource.username=postgres
-spring.datasource.password=postgres
-```
+### User Management
+- Create admin user during tenant registration
+- Associate users with tenant and role
+- Tenant-filtered user queries
 
-### 3. Run Application
-```
-./gradlew bootRun
-```
+### Role Management
+- System roles: `ADMIN`, `USER`
+- Role-based access control with `@PreAuthorize`
+
+### Authentication & Security
+- Login API with JWT token generation
+- JWT Authentication Filter (`JwtAuthenticationFilter`)
+- JWT carries tenant context
+- Password hashing with BCrypt
+- Spring Security configuration
+- Method-level security enforcement
+
+### Exception Handling & Validation
+- Global Exception Handler (`GlobalExceptionHandler`)
+- Input validation on all endpoints
+- Proper HTTP status codes and error responses
+
+### Pagination & Filtering
+- Paginated responses via `PageResponse` DTO
+- `Pageable` support in `UserService` and `TenantService`
+- Paginated repository queries with tenant filtering
+
+### Testing
+- Unit tests for `RoleService`, `RoleController`
+- Unit tests for `JwtAuthenticationFilter`
+- Unit tests for `UserService` and `TenantService` with pagination and tenant filtering
 
 ---
 
-## 📡 API Endpoints
+## API Endpoints
 
-### Register Tenant
+### Tenant
 ```
-POST /api/tenants/register
+POST   /api/tenants/register
+GET    /api/tenants/{id}
+PUT    /api/tenants/{id}
+DELETE /api/tenants/{id}
 ```
 
-### Login
+### Auth
 ```
 POST /api/auth/login
 ```
 
 ---
 
-## 🚧 Upcoming Features (Roadmap)
+## Setup Instructions
 
-### 🔥 Phase 1 (Current Focus)
-- JWT Authentication Filter
-- Secure protected APIs
-- Exception handling
-- Input validation
+### 1. Clone Repository
+```bash
+git clone <your-repo-url>
+```
 
-### 🔥 Phase 2
-- Redis caching
-- API rate limiting
-- Pagination & filtering
-- Audit logging
+### 2. Configure Database
+Update `src/main/resources/application.properties`:
+```properties
+spring.datasource.url=jdbc:postgresql://localhost:5432/saasforge
+spring.datasource.username=postgres
+spring.datasource.password=postgres
+```
 
-### 🔥 Phase 3
-- Kafka event system
-- Email notifications
-- Async processing
-
-### 🔥 Phase 4
-- Docker containerization
-- AWS deployment (EC2 + RDS)
-- CI/CD pipeline
+### 3. Run Application
+```bash
+./gradlew bootRun
+```
 
 ---
 
-## 🎯 Long-Term Goals
+## Roadmap
 
-- Build a **production-ready SaaS backend**
-- Handle **multi-tenant scaling**
-- Add **real-world complexity**
+See [futurePlan.md](futurePlan.md) for the full roadmap including upcoming phases:
+
+- **Phase 2:** Redis caching, rate limiting, audit logging
+- **Phase 3:** Kafka event system, email notifications, async processing
+- **Phase 4:** Docker, AWS deployment (EC2 + RDS), CI/CD pipeline
 
 ---
 
+## Status
 
-## 👨‍💻 Author
+Actively under development — Phase 1 complete.
+
+---
+
+## Author
 
 Ashwin Mishra
-
----
-
-## ⚡ Status
-
-🚧 Actively under development  
-🔥 Built with a focus on learning and mastery
