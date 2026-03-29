@@ -219,13 +219,16 @@ class UserServiceTest {
     // ── deleteUser ────────────────────────────────────────────────────────────
 
     @Test
-    void deleteUser_success_callsDelete() {
+    void deleteUser_success_softDeletesUser() {
         User user = buildUser(1L, "Alice", "alice@test.com");
         when(userRepository.findByIdAndTenantId(1L, TENANT_ID)).thenReturn(Optional.of(user));
 
         userService.deleteUser(1L);
 
-        verify(userRepository).delete(user);
+        ArgumentCaptor<User> captor = ArgumentCaptor.forClass(User.class);
+        verify(userRepository).save(captor.capture());
+        assertThat(captor.getValue().isDeleted()).isTrue();
+        assertThat(captor.getValue().getDeletedAt()).isNotNull();
     }
 
     @Test
@@ -238,12 +241,12 @@ class UserServiceTest {
     }
 
     @Test
-    void deleteUser_notFound_doesNotCallDelete() {
+    void deleteUser_notFound_doesNotSave() {
         when(userRepository.findByIdAndTenantId(99L, TENANT_ID)).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> userService.deleteUser(99L))
                 .isInstanceOf(ResourceNotFoundException.class);
 
-        verify(userRepository, never()).delete(any(User.class));
+        verify(userRepository, never()).save(any(User.class));
     }
 }

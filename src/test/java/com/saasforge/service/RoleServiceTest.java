@@ -245,13 +245,16 @@ class RoleServiceTest {
     // ── deleteRole ────────────────────────────────────────────────────────────
 
     @Test
-    void deleteRole_success_callsDelete() {
+    void deleteRole_success_softDeletesRole() {
         SystemRole role = buildRole(1L, "Admin", "ADMIN");
         when(roleRepository.findByIdAndTenantId(1L, TENANT_ID)).thenReturn(Optional.of(role));
 
         roleService.deleteRole(1L);
 
-        verify(roleRepository).delete(role);
+        ArgumentCaptor<SystemRole> captor = ArgumentCaptor.forClass(SystemRole.class);
+        verify(roleRepository).save(captor.capture());
+        assertThat(captor.getValue().isDeleted()).isTrue();
+        assertThat(captor.getValue().getDeletedAt()).isNotNull();
     }
 
     @Test
@@ -264,19 +267,20 @@ class RoleServiceTest {
     }
 
     @Test
-    void deleteRole_notFound_doesNotCallDelete() {
+    void deleteRole_notFound_doesNotSave() {
         when(roleRepository.findByIdAndTenantId(99L, TENANT_ID)).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> roleService.deleteRole(99L))
                 .isInstanceOf(ResourceNotFoundException.class);
 
-        verify(roleRepository, never()).delete(any(SystemRole.class));
+        verify(roleRepository, never()).save(any(SystemRole.class));
     }
 
     @Test
     void deleteRole_usesCurrentTenantIdFromContext() {
         SystemRole role = buildRole(1L, "Admin", "ADMIN");
         when(roleRepository.findByIdAndTenantId(1L, TENANT_ID)).thenReturn(Optional.of(role));
+        when(roleRepository.save(any(SystemRole.class))).thenReturn(role);
 
         roleService.deleteRole(1L);
 

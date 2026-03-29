@@ -29,6 +29,7 @@ import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
@@ -237,13 +238,16 @@ class TenantServiceTest {
     // ── deleteTenant ──────────────────────────────────────────────────────────
 
     @Test
-    void deleteTenant_success_callsDelete() {
+    void deleteTenant_success_softDeletesTenant() {
         Tenant tenant = buildTenant(1L, "Acme", "acme", "ACTIVE");
         when(tenantRepository.findById(1L)).thenReturn(Optional.of(tenant));
 
         tenantService.deleteTenant(1L);
 
-        verify(tenantRepository).delete(tenant);
+        ArgumentCaptor<Tenant> captor = ArgumentCaptor.forClass(Tenant.class);
+        verify(tenantRepository).save(captor.capture());
+        assertThat(captor.getValue().isDeleted()).isTrue();
+        assertThat(captor.getValue().getDeletedAt()).isNotNull();
     }
 
     @Test
@@ -256,13 +260,13 @@ class TenantServiceTest {
     }
 
     @Test
-    void deleteTenant_notFound_doesNotCallDelete() {
+    void deleteTenant_notFound_doesNotSave() {
         when(tenantRepository.findById(99L)).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> tenantService.deleteTenant(99L))
                 .isInstanceOf(ResourceNotFoundException.class);
 
-        verify(tenantRepository, never()).delete(any(Tenant.class));
+        verify(tenantRepository, never()).save(any(Tenant.class));
     }
 
     private Tenant buildTenant(Long id, String name, String key, String status) {
