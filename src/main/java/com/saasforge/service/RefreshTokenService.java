@@ -19,6 +19,7 @@ public class RefreshTokenService {
 
     private final RefreshTokenRepository refreshTokenRepository;
 
+    @Transactional
     public RefreshToken createRefreshToken(User user) {
 
         // Revoke all existing refresh tokens for this user
