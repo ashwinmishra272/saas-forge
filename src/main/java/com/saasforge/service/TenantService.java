@@ -12,6 +12,7 @@ import com.saasforge.exception.ResourceNotFoundException;
 import com.saasforge.repository.RoleRepository;
 import com.saasforge.repository.TenantRepository;
 import com.saasforge.repository.UserRepository;
+import com.saasforge.security.TenantContext;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -70,31 +71,37 @@ public class TenantService {
 
     @PreAuthorize("hasRole('ADMIN')")
     public PageResponse<TenantResponse> getAllTenants(int page, int size, String sortBy) {
-        log.info("Fetching tenants - page={}, size={}, sortBy={}", page, size, sortBy);
+        Long tenantId = TenantContext.getCurrentTenantId();
+        log.info("Fetching tenants - tenantId={}, page={}, size={}, sortBy={}", tenantId, page, size, sortBy);
         Pageable pageable = PageRequest.of(page, size, Sort.by(sortBy).ascending());
-        Page<Tenant> tenantPage = tenantRepository.findAll(pageable);
+        // Scoped to current tenant — admins only see their own workspace
+        Page<Tenant> tenantPage = tenantRepository.findByIdAndDeletedFalse(tenantId, pageable);
         Page<TenantResponse> responsePage = tenantPage.map(this::toResponse);
         return new PageResponse<>(responsePage);
     }
 
     @PreAuthorize("hasRole('ADMIN')")
     public TenantResponse getTenantById(Long id) {
-        log.info("Fetching tenant with id: {}", id);
-        Tenant tenant = tenantRepository.findById(id)
+        Long tenantId = TenantContext.getCurrentTenantId();
+        log.info("Fetching tenant id={} for tenantId={}", id, tenantId);
+        // Users can only fetch their own tenant — ignore id param, use JWT tenantId
+        Tenant tenant = tenantRepository.findById(tenantId)
                 .orElseThrow(() -> {
-                    log.warn("Tenant not found with id: {}", id);
-                    return new ResourceNotFoundException("Tenant not found with id: " + id);
+                    log.warn("Tenant not found with id: {}", tenantId);
+                    return new ResourceNotFoundException("Tenant not found with id: " + tenantId);
                 });
         return toResponse(tenant);
     }
 
     @PreAuthorize("hasRole('ADMIN')")
     public TenantResponse updateTenant(Long id, UpdateTenantRequest request) {
-        log.info("Updating tenant with id: {}", id);
-        Tenant tenant = tenantRepository.findById(id)
+        Long tenantId = TenantContext.getCurrentTenantId();
+        log.info("Updating tenant id={} for tenantId={}", id, tenantId);
+        // Scope update to current tenant only
+        Tenant tenant = tenantRepository.findById(tenantId)
                 .orElseThrow(() -> {
-                    log.warn("Tenant not found with id: {}", id);
-                    return new ResourceNotFoundException("Tenant not found with id: " + id);
+                    log.warn("Tenant not found with id: {}", tenantId);
+                    return new ResourceNotFoundException("Tenant not found with id: " + tenantId);
                 });
 
         tenant.setName(request.getName());
