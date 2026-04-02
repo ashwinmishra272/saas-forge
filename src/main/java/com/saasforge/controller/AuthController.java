@@ -59,8 +59,8 @@ public class AuthController {
             @ApiResponse(responseCode = "404", description = "Email not found")
     })
     public ResponseEntity<String> forgotPassword(@Valid @RequestBody ForgotPasswordRequest request) {
-        String token = passwordResetService.forgotPassword(request);
-        return ResponseEntity.ok(token);
+        passwordResetService.forgotPassword(request);
+        return ResponseEntity.ok("Password reset token sent to your email");
     }
 
     @PostMapping("/reset-password")

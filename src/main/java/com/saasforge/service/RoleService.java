@@ -10,6 +10,8 @@ import com.saasforge.repository.TenantRepository;
 import com.saasforge.security.TenantContext;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -29,6 +31,10 @@ public class RoleService {
     private final TenantRepository tenantRepository;
 
     @PreAuthorize("hasRole('ADMIN')")
+    @Cacheable(
+            value = "roles",
+            key = "T(com.saasforge.security.TenantContext).getCurrentTenantId()",
+            condition = "#search == null || #search.isBlank()")
     public List<RoleResponse> getAllRoles(String search) {
         Long tenantId = TenantContext.getCurrentTenantId();
         log.info("Fetching roles for tenantId={} search={}", tenantId, search);
@@ -51,6 +57,7 @@ public class RoleService {
     }
 
     @PreAuthorize("hasRole('ADMIN')")
+    @CacheEvict(value = "roles", key = "T(com.saasforge.security.TenantContext).getCurrentTenantId()")
     public RoleResponse createRole(CreateRoleRequest request) {
         Long tenantId = TenantContext.getCurrentTenantId();
         log.info("Creating role: {} for tenantId={}", request.getRoleKey(), tenantId);
@@ -73,6 +80,7 @@ public class RoleService {
     }
 
     @PreAuthorize("hasRole('ADMIN')")
+    @CacheEvict(value = "roles", key = "T(com.saasforge.security.TenantContext).getCurrentTenantId()")
     public RoleResponse updateRole(Long id, UpdateRoleRequest request) {
         Long tenantId = TenantContext.getCurrentTenantId();
 
@@ -86,6 +94,7 @@ public class RoleService {
     }
 
     @PreAuthorize("hasRole('ADMIN')")
+    @CacheEvict(value = "roles", key = "T(com.saasforge.security.TenantContext).getCurrentTenantId()")
     public void deleteRole(Long id) {
         Long tenantId = TenantContext.getCurrentTenantId();
         log.info("Soft deleting role id={} tenantId={}", id, tenantId);

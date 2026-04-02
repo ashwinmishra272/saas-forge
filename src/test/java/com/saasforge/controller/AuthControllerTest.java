@@ -220,7 +220,7 @@ class AuthControllerTest {
 
     @Test
     void forgotPassword_validEmail_returns200WithToken() throws Exception {
-        when(passwordResetService.forgotPassword(any())).thenReturn("reset-token-abc");
+        doNothing().when(passwordResetService).forgotPassword(any());
 
         ForgotPasswordRequest request = new ForgotPasswordRequest();
         request.setEmail("user@test.com");
@@ -229,7 +229,7 @@ class AuthControllerTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isOk())
-                .andExpect(content().string("reset-token-abc"));
+                .andExpect(content().string("Password reset token sent to your email"));
     }
 
     @Test
@@ -256,8 +256,8 @@ class AuthControllerTest {
 
     @Test
     void forgotPassword_emailNotFound_returns404() throws Exception {
-        when(passwordResetService.forgotPassword(any()))
-                .thenThrow(new ResourceNotFoundException("No account found with email: user@test.com"));
+        doThrow(new ResourceNotFoundException("No account found with email: user@test.com"))
+                .when(passwordResetService).forgotPassword(any());
 
         ForgotPasswordRequest request = new ForgotPasswordRequest();
         request.setEmail("user@test.com");

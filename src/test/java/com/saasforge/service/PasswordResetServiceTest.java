@@ -38,6 +38,9 @@ class PasswordResetServiceTest {
     @Mock
     private PasswordEncoder passwordEncoder;
 
+    @Mock
+    private EmailService emailService;
+
     @InjectMocks
     private PasswordResetService passwordResetService;
 
@@ -122,16 +125,17 @@ class PasswordResetServiceTest {
     }
 
     @Test
-    void forgotPassword_returnsTokenMatchingTheSavedOne() {
+    void forgotPassword_sendsEmailWithSavedToken() {
         User user = buildUser();
         when(userRepository.findByEmail("user@test.com")).thenReturn(Optional.of(user));
 
-        String result = passwordResetService.forgotPassword(forgotRequest());
+        passwordResetService.forgotPassword(forgotRequest());
 
         ArgumentCaptor<PasswordResetToken> captor = ArgumentCaptor.forClass(PasswordResetToken.class);
         verify(passwordResetTokenRepository).save(captor.capture());
 
-        assertThat(result).isEqualTo(captor.getValue().getToken());
+        String savedToken = captor.getValue().getToken();
+        verify(emailService).sendPasswordResetEmail("user@test.com", savedToken);
     }
 
     @Test

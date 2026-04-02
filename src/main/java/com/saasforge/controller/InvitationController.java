@@ -35,8 +35,8 @@ public class InvitationController {
             @ApiResponse(responseCode = "403", description = "Admin access required")
     })
     public ResponseEntity<String> inviteUser(@Valid @RequestBody InviteUserRequest request) {
-        String token = invitationService.inviteUser(request);
-        return ResponseEntity.ok(token);
+        invitationService.inviteUser(request);
+        return ResponseEntity.ok("Invitation email sent to " + request.getEmail());
     }
 
     @PostMapping("/accept")

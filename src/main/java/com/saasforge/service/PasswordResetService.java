@@ -25,8 +25,10 @@ public class PasswordResetService {
     private final UserRepository userRepository;
     private final PasswordResetTokenRepository passwordResetTokenRepository;
     private final PasswordEncoder passwordEncoder;
+    private final EmailService emailService;
 
-    public String forgotPassword(ForgotPasswordRequest request) {
+
+    public void forgotPassword(ForgotPasswordRequest request) {
         log.info("Password reset requested for email: {}", request.getEmail());
 
         User user = userRepository.findByEmail(request.getEmail())
@@ -44,9 +46,9 @@ public class PasswordResetService {
 
         passwordResetTokenRepository.save(resetToken);
 
-        log.info("Password reset token generated for userId={}", user.getId());
+        emailService.sendPasswordResetEmail(request.getEmail(), tokenValue); // CHANGED
 
-        return tokenValue;
+        log.info("Password reset email sent to userId={}", user.getId());
     }
 
     @Transactional

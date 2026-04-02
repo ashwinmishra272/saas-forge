@@ -16,6 +16,8 @@ import com.saasforge.security.TenantContext;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -70,6 +72,7 @@ public class TenantService {
     }
 
     @PreAuthorize("hasRole('ADMIN')")
+    @Cacheable(value = "tenants", key = "T(com.saasforge.security.TenantContext).getCurrentTenantId()")
     public PageResponse<TenantResponse> getAllTenants(int page, int size, String sortBy, String search) {
         Long tenantId = TenantContext.getCurrentTenantId();
         log.info("Fetching tenants for tenantId={} page={} size={} search={}", tenantId, page, size, search);
@@ -97,6 +100,7 @@ public class TenantService {
     }
 
     @PreAuthorize("hasRole('ADMIN')")
+    @CacheEvict(value = "tenants", key = "T(com.saasforge.security.TenantContext).getCurrentTenantId()")
     public TenantResponse updateTenant(Long id, UpdateTenantRequest request) {
         Long tenantId = TenantContext.getCurrentTenantId();
         log.info("Updating tenant id={} for tenantId={}", id, tenantId);
@@ -116,6 +120,7 @@ public class TenantService {
     }
 
     @PreAuthorize("hasRole('ADMIN')")
+    @CacheEvict(value = "tenants", key = "T(com.saasforge.security.TenantContext).getCurrentTenantId()")
     public void deleteTenant(Long id) {
         log.info("Soft deleting tenant id={}", id);
 

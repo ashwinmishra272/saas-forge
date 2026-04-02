@@ -53,6 +53,9 @@ class InvitationServiceTest {
     @Mock
     private PasswordEncoder passwordEncoder;
 
+    @Mock
+    private EmailService emailService;
+
     @InjectMocks
     private InvitationService invitationService;
 
@@ -186,19 +189,22 @@ class InvitationServiceTest {
     }
 
     @Test
-    void inviteUser_success_savesInvitationAndReturnsToken() {
+    void inviteUser_success_savesInvitationAndSendsEmail() {
         mockSecurityContext(ADMIN_EMAIL);
         when(userRepository.existsByEmailAndTenantId("newuser@test.com", TENANT_ID)).thenReturn(false);
         when(invitationTokenRepository.existsByInvitedEmailAndTenantIdAndAcceptedFalse(
                 "newuser@test.com", TENANT_ID)).thenReturn(false);
-        when(tenantRepository.findById(TENANT_ID)).thenReturn(Optional.of(buildTenant()));
+        Tenant tenant = buildTenant();
+        when(tenantRepository.findById(TENANT_ID)).thenReturn(Optional.of(tenant));
         when(roleRepository.findByIdAndTenantId(2L, TENANT_ID)).thenReturn(Optional.of(buildRole()));
         when(userRepository.findByEmail(ADMIN_EMAIL)).thenReturn(Optional.of(buildAdmin()));
 
-        String result = invitationService.inviteUser(validInviteRequest());
+        invitationService.inviteUser(validInviteRequest());
 
-        assertThat(result).isNotNull().isNotBlank();
-        verify(invitationTokenRepository).save(any(InvitationToken.class));
+        ArgumentCaptor<InvitationToken> captor = ArgumentCaptor.forClass(InvitationToken.class);
+        verify(invitationTokenRepository).save(captor.capture());
+        String savedToken = captor.getValue().getToken();
+        verify(emailService).sendInvitationEmail("newuser@test.com", savedToken, tenant.getName());
     }
 
     @Test

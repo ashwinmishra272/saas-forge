@@ -60,13 +60,13 @@ class InvitationControllerTest {
 
     @Test
     void inviteUser_validRequest_returns200WithToken() throws Exception {
-        when(invitationService.inviteUser(any())).thenReturn("generated-invite-token");
+        doNothing().when(invitationService).inviteUser(any());
 
         mockMvc.perform(post("/api/invitations/invite")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(validInviteRequest())))
                 .andExpect(status().isOk())
-                .andExpect(content().string("generated-invite-token"));
+                .andExpect(content().string("Invitation email sent to newuser@test.com"));
 
         verify(invitationService).inviteUser(any());
     }
@@ -106,8 +106,8 @@ class InvitationControllerTest {
 
     @Test
     void inviteUser_userAlreadyExists_returns400() throws Exception {
-        when(invitationService.inviteUser(any()))
-                .thenThrow(new BadRequestException("User with email 'newuser@test.com' already exists in this tenant"));
+        doThrow(new BadRequestException("User with email 'newuser@test.com' already exists in this tenant"))
+                .when(invitationService).inviteUser(any());
 
         mockMvc.perform(post("/api/invitations/invite")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -118,8 +118,8 @@ class InvitationControllerTest {
 
     @Test
     void inviteUser_pendingInvitationExists_returns400() throws Exception {
-        when(invitationService.inviteUser(any()))
-                .thenThrow(new BadRequestException("A pending invitation already exists for: newuser@test.com"));
+        doThrow(new BadRequestException("A pending invitation already exists for: newuser@test.com"))
+                .when(invitationService).inviteUser(any());
 
         mockMvc.perform(post("/api/invitations/invite")
                         .contentType(MediaType.APPLICATION_JSON)

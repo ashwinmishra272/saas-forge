@@ -34,8 +34,9 @@ public class InvitationService {
     private final RoleRepository roleRepository;
     private final TenantRepository tenantRepository;
     private final PasswordEncoder passwordEncoder;
+    private final EmailService emailService;
 
-    public String inviteUser(InviteUserRequest request) {
+    public void inviteUser(InviteUserRequest request) {
         Long tenantId = TenantContext.getCurrentTenantId();
 
         // Get currently logged in admin
@@ -81,9 +82,7 @@ public class InvitationService {
 
         log.info("Invitation created for {} in tenantId={}", request.getEmail(), tenantId);
 
-        // In production — send this token via email as a link
-        // e.g. https://yourapp.com/accept-invite?token=abc123
-        return tokenValue;
+        emailService.sendInvitationEmail(request.getEmail(), tokenValue, tenant.getName());
     }
 
     @Transactional
