@@ -45,9 +45,11 @@ public class TenantController {
     public ResponseEntity<PageResponse<TenantResponse>> getAllTenants(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size,
-            @RequestParam(defaultValue = "id") String sortBy) {
-        return ResponseEntity.ok(tenantService.getAllTenants(page, size, sortBy));
+            @RequestParam(defaultValue = "id") String sortBy,
+            @RequestParam(defaultValue = "") String search) {
+        return ResponseEntity.ok(tenantService.getAllTenants(page, size, sortBy, search));
     }
+
 
     @GetMapping("/{id}")
     @SecurityRequirement(name = "Bearer Authentication")

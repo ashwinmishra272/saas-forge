@@ -1,6 +1,7 @@
 package com.saasforge.service;
 
 import com.saasforge.dto.AuthResponse;
+import com.saasforge.dto.ChangePasswordRequest;
 import com.saasforge.dto.LoginRequest;
 import com.saasforge.dto.RefreshTokenRequest;
 import com.saasforge.entity.RefreshToken;
@@ -11,11 +12,16 @@ import com.saasforge.exception.BadRequestException;
 import com.saasforge.exception.ResourceNotFoundException;
 import com.saasforge.repository.UserRepository;
 import com.saasforge.security.JwtService;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContext;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
 import java.util.Optional;
@@ -41,6 +47,19 @@ class AuthServiceTest {
 
     @InjectMocks
     private AuthService authService;
+
+    @AfterEach
+    void tearDown() {
+        SecurityContextHolder.clearContext();
+    }
+
+    private void mockSecurityContext(String email) {
+        Authentication authentication = mock(Authentication.class);
+        when(authentication.getPrincipal()).thenReturn(email);
+        SecurityContext securityContext = mock(SecurityContext.class);
+        when(securityContext.getAuthentication()).thenReturn(authentication);
+        SecurityContextHolder.setContext(securityContext);
+    }
 
     private User buildUser() {
         Tenant tenant = new Tenant();
@@ -208,5 +227,107 @@ class AuthServiceTest {
         assertThatThrownBy(() -> authService.refresh(request))
                 .isInstanceOf(BadRequestException.class)
                 .hasMessage("Invalid refresh token");
+    }
+
+    // ── changePassword ────────────────────────────────────────────────────────
+
+    @Test
+    void changePassword_success_encodesAndSavesPassword() {
+        mockSecurityContext("admin@test.com");
+        User user = buildUser();
+        when(userRepository.findByEmail("admin@test.com")).thenReturn(Optional.of(user));
+        when(passwordEncoder.matches("currentPass", "encodedPassword")).thenReturn(true);
+        when(passwordEncoder.matches("newPass123", "encodedPassword")).thenReturn(false);
+        when(passwordEncoder.encode("newPass123")).thenReturn("encodedNewPassword");
+
+        ChangePasswordRequest request = new ChangePasswordRequest();
+        request.setCurrentPassword("currentPass");
+        request.setNewPassword("newPass123");
+
+        authService.changePassword(request);
+
+        ArgumentCaptor<User> captor = ArgumentCaptor.forClass(User.class);
+        verify(userRepository).save(captor.capture());
+        assertThat(captor.getValue().getPassword()).isEqualTo("encodedNewPassword");
+    }
+
+    @Test
+    void changePassword_userNotFound_throwsResourceNotFoundException() {
+        mockSecurityContext("unknown@test.com");
+        when(userRepository.findByEmail("unknown@test.com")).thenReturn(Optional.empty());
+
+        ChangePasswordRequest request = new ChangePasswordRequest();
+        request.setCurrentPassword("currentPass");
+        request.setNewPassword("newPass123");
+
+        assertThatThrownBy(() -> authService.changePassword(request))
+                .isInstanceOf(ResourceNotFoundException.class)
+                .hasMessage("User not found");
+    }
+
+    @Test
+    void changePassword_wrongCurrentPassword_throwsBadRequestException() {
+        mockSecurityContext("admin@test.com");
+        User user = buildUser();
+        when(userRepository.findByEmail("admin@test.com")).thenReturn(Optional.of(user));
+        when(passwordEncoder.matches("wrongPass", "encodedPassword")).thenReturn(false);
+
+        ChangePasswordRequest request = new ChangePasswordRequest();
+        request.setCurrentPassword("wrongPass");
+        request.setNewPassword("newPass123");
+
+        assertThatThrownBy(() -> authService.changePassword(request))
+                .isInstanceOf(BadRequestException.class)
+                .hasMessage("Current password is incorrect");
+    }
+
+    @Test
+    void changePassword_samePassword_throwsBadRequestException() {
+        mockSecurityContext("admin@test.com");
+        User user = buildUser();
+        when(userRepository.findByEmail("admin@test.com")).thenReturn(Optional.of(user));
+        when(passwordEncoder.matches("samePass", "encodedPassword")).thenReturn(true);
+
+        ChangePasswordRequest request = new ChangePasswordRequest();
+        request.setCurrentPassword("samePass");
+        request.setNewPassword("samePass");
+
+        assertThatThrownBy(() -> authService.changePassword(request))
+                .isInstanceOf(BadRequestException.class)
+                .hasMessage("New password must be different from current password");
+    }
+
+    @Test
+    void changePassword_doesNotSave_whenCurrentPasswordWrong() {
+        mockSecurityContext("admin@test.com");
+        User user = buildUser();
+        when(userRepository.findByEmail("admin@test.com")).thenReturn(Optional.of(user));
+        when(passwordEncoder.matches("wrongPass", "encodedPassword")).thenReturn(false);
+
+        ChangePasswordRequest request = new ChangePasswordRequest();
+        request.setCurrentPassword("wrongPass");
+        request.setNewPassword("newPass123");
+
+        assertThatThrownBy(() -> authService.changePassword(request))
+                .isInstanceOf(BadRequestException.class);
+
+        verify(userRepository, never()).save(any(User.class));
+    }
+
+    @Test
+    void changePassword_doesNotSave_whenPasswordSameAsCurrent() {
+        mockSecurityContext("admin@test.com");
+        User user = buildUser();
+        when(userRepository.findByEmail("admin@test.com")).thenReturn(Optional.of(user));
+        when(passwordEncoder.matches("samePass", "encodedPassword")).thenReturn(true);
+
+        ChangePasswordRequest request = new ChangePasswordRequest();
+        request.setCurrentPassword("samePass");
+        request.setNewPassword("samePass");
+
+        assertThatThrownBy(() -> authService.changePassword(request))
+                .isInstanceOf(BadRequestException.class);
+
+        verify(userRepository, never()).save(any(User.class));
     }
 }

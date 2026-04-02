@@ -28,8 +28,9 @@ public class UserController {
     public ResponseEntity<PageResponse<UserResponse>> getAllUsers(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size,
-            @RequestParam(defaultValue = "id") String sortBy) {
-        return ResponseEntity.ok(userService.getAllUsers(page, size, sortBy));
+            @RequestParam(defaultValue = "id") String sortBy,
+            @RequestParam(defaultValue = "") String search) {
+        return ResponseEntity.ok(userService.getAllUsers(page, size, sortBy, search));
     }
 
     @GetMapping("/{id}")

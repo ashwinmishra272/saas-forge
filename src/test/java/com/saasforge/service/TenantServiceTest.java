@@ -12,6 +12,9 @@ import com.saasforge.exception.ResourceNotFoundException;
 import com.saasforge.repository.RoleRepository;
 import com.saasforge.repository.TenantRepository;
 import com.saasforge.repository.UserRepository;
+import com.saasforge.security.TenantContext;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
@@ -30,6 +33,7 @@ import java.util.Optional;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
@@ -49,6 +53,18 @@ class TenantServiceTest {
 
     @InjectMocks
     private TenantService tenantService;
+
+    private static final Long TENANT_ID = 1L;
+
+    @BeforeEach
+    void setUp() {
+        TenantContext.setCurrentTenantId(TENANT_ID);
+    }
+
+    @AfterEach
+    void tearDown() {
+        TenantContext.clear();
+    }
 
     private TenantRegistrationRequest buildRequest() {
         TenantRegistrationRequest request = new TenantRegistrationRequest();
@@ -145,9 +161,9 @@ class TenantServiceTest {
         Tenant t1 = buildTenant(1L, "Acme", "acme", "ACTIVE");
         Tenant t2 = buildTenant(2L, "Beta Corp", "beta_corp", "ACTIVE");
         Page<Tenant> page = new PageImpl<>(List.of(t1, t2));
-        when(tenantRepository.findAll(any(Pageable.class))).thenReturn(page);
+        when(tenantRepository.findByIdAndDeletedFalse(eq(TENANT_ID), any(Pageable.class))).thenReturn(page);
 
-        PageResponse<TenantResponse> result = tenantService.getAllTenants(0, 10, "id");
+        PageResponse<TenantResponse> result = tenantService.getAllTenants(0, 10, "id", "");
 
         assertThat(result.getContent()).hasSize(2);
         assertThat(result.getContent().get(0).getName()).isEqualTo("Acme");
@@ -156,12 +172,12 @@ class TenantServiceTest {
 
     @Test
     void getAllTenants_passesCorrectPageableToRepository() {
-        when(tenantRepository.findAll(any(Pageable.class))).thenReturn(Page.empty());
+        when(tenantRepository.findByIdAndDeletedFalse(eq(TENANT_ID), any(Pageable.class))).thenReturn(Page.empty());
 
-        tenantService.getAllTenants(2, 5, "name");
+        tenantService.getAllTenants(2, 5, "name", "");
 
         ArgumentCaptor<Pageable> captor = ArgumentCaptor.forClass(Pageable.class);
-        verify(tenantRepository).findAll(captor.capture());
+        verify(tenantRepository).findByIdAndDeletedFalse(eq(TENANT_ID), captor.capture());
         assertThat(captor.getValue().getPageNumber()).isEqualTo(2);
         assertThat(captor.getValue().getPageSize()).isEqualTo(5);
         assertThat(captor.getValue().getSort().getOrderFor("name")).isNotNull();
@@ -170,15 +186,27 @@ class TenantServiceTest {
     @Test
     void getAllTenants_mapsFieldsCorrectly() {
         Tenant t = buildTenant(7L, "Demo Inc", "demo_inc", "ACTIVE");
-        when(tenantRepository.findAll(any(Pageable.class))).thenReturn(new PageImpl<>(List.of(t)));
+        when(tenantRepository.findByIdAndDeletedFalse(eq(TENANT_ID), any(Pageable.class)))
+                .thenReturn(new PageImpl<>(List.of(t)));
 
-        PageResponse<TenantResponse> result = tenantService.getAllTenants(0, 10, "id");
+        PageResponse<TenantResponse> result = tenantService.getAllTenants(0, 10, "id", "");
 
         TenantResponse response = result.getContent().get(0);
         assertThat(response.getId()).isEqualTo(7L);
         assertThat(response.getName()).isEqualTo("Demo Inc");
         assertThat(response.getTenantKey()).isEqualTo("demo_inc");
         assertThat(response.getStatus()).isEqualTo("ACTIVE");
+    }
+
+    @Test
+    void getAllTenants_withSearch_callsSearchById() {
+        when(tenantRepository.searchById(eq(TENANT_ID), eq("acme"), any(Pageable.class)))
+                .thenReturn(Page.empty());
+
+        tenantService.getAllTenants(0, 10, "id", "acme");
+
+        verify(tenantRepository).searchById(eq(TENANT_ID), eq("acme"), any(Pageable.class));
+        verify(tenantRepository, never()).findByIdAndDeletedFalse(any(), any());
     }
 
     // ── getTenantById ─────────────────────────────────────────────────────────
@@ -197,11 +225,12 @@ class TenantServiceTest {
 
     @Test
     void getTenantById_notFound_throwsResourceNotFoundException() {
-        when(tenantRepository.findById(99L)).thenReturn(Optional.empty());
+        // Service ignores the id param and uses TenantContext; mock the context-based lookup
+        when(tenantRepository.findById(TENANT_ID)).thenReturn(Optional.empty());
 
-        assertThatThrownBy(() -> tenantService.getTenantById(99L))
+        assertThatThrownBy(() -> tenantService.getTenantById(TENANT_ID))
                 .isInstanceOf(ResourceNotFoundException.class)
-                .hasMessageContaining("99");
+                .hasMessageContaining("Tenant not found");
     }
 
     // ── updateTenant ──────────────────────────────────────────────────────────
@@ -224,15 +253,16 @@ class TenantServiceTest {
 
     @Test
     void updateTenant_notFound_throwsResourceNotFoundException() {
-        when(tenantRepository.findById(99L)).thenReturn(Optional.empty());
+        // Service ignores the id param and uses TenantContext; mock the context-based lookup
+        when(tenantRepository.findById(TENANT_ID)).thenReturn(Optional.empty());
 
         UpdateTenantRequest request = new UpdateTenantRequest();
         request.setName("Name");
         request.setStatus("ACTIVE");
 
-        assertThatThrownBy(() -> tenantService.updateTenant(99L, request))
+        assertThatThrownBy(() -> tenantService.updateTenant(TENANT_ID, request))
                 .isInstanceOf(ResourceNotFoundException.class)
-                .hasMessageContaining("99");
+                .hasMessageContaining("Tenant not found");
     }
 
     // ── deleteTenant ──────────────────────────────────────────────────────────

@@ -1,8 +1,6 @@
 package com.saasforge.service;
 
-import com.saasforge.dto.CreateRoleRequest;
-import com.saasforge.dto.RoleResponse;
-import com.saasforge.dto.UpdateRoleRequest;
+import com.saasforge.dto.*;
 import com.saasforge.entity.SystemRole;
 import com.saasforge.entity.Tenant;
 import com.saasforge.exception.BadRequestException;
@@ -12,6 +10,10 @@ import com.saasforge.repository.TenantRepository;
 import com.saasforge.security.TenantContext;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
 
@@ -27,14 +29,15 @@ public class RoleService {
     private final TenantRepository tenantRepository;
 
     @PreAuthorize("hasRole('ADMIN')")
-    public List<RoleResponse> getAllRoles() {
+    public List<RoleResponse> getAllRoles(String search) {
         Long tenantId = TenantContext.getCurrentTenantId();
-        log.info("Fetching all roles for tenantId={}", tenantId);
+        log.info("Fetching roles for tenantId={} search={}", tenantId, search);
 
-        return roleRepository.findByTenantId(tenantId)
-                .stream()
-                .map(this::toResponse)
-                .toList();
+        List<SystemRole> roles = (search == null || search.isBlank())
+                ? roleRepository.findByTenantId(tenantId)
+                : roleRepository.findByTenantIdAndNameContainingIgnoreCase(tenantId, search.trim());
+
+        return roles.stream().map(this::toResponse).toList();
     }
 
     @PreAuthorize("hasRole('ADMIN')")

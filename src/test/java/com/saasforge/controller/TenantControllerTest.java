@@ -117,7 +117,7 @@ class TenantControllerTest {
 
     @Test
     void getAllTenants_returns200WithPagedContent() throws Exception {
-        when(tenantService.getAllTenants(anyInt(), anyInt(), anyString())).thenReturn(samplePage(
+        when(tenantService.getAllTenants(anyInt(), anyInt(), anyString(), anyString())).thenReturn(samplePage(
                 sampleTenantResponse(1L, "Acme Corp"),
                 sampleTenantResponse(2L, "Beta Inc")
         ));
@@ -131,7 +131,7 @@ class TenantControllerTest {
 
     @Test
     void getAllTenants_forwardsPageParams() throws Exception {
-        when(tenantService.getAllTenants(eq(1), eq(5), eq("name"))).thenReturn(samplePage());
+        when(tenantService.getAllTenants(eq(1), eq(5), eq("name"), anyString())).thenReturn(samplePage());
 
         mockMvc.perform(get("/api/tenants")
                         .param("page", "1")
@@ -139,12 +139,12 @@ class TenantControllerTest {
                         .param("sortBy", "name"))
                 .andExpect(status().isOk());
 
-        verify(tenantService).getAllTenants(1, 5, "name");
+        verify(tenantService).getAllTenants(eq(1), eq(5), eq("name"), anyString());
     }
 
     @Test
     void getAllTenants_returnsPageMetadata() throws Exception {
-        when(tenantService.getAllTenants(anyInt(), anyInt(), anyString())).thenReturn(
+        when(tenantService.getAllTenants(anyInt(), anyInt(), anyString(), anyString())).thenReturn(
                 samplePage(sampleTenantResponse(1L, "Acme"))
         );
 
@@ -153,6 +153,16 @@ class TenantControllerTest {
                 .andExpect(jsonPath("$.totalElements").value(1))
                 .andExpect(jsonPath("$.totalPages").value(1))
                 .andExpect(jsonPath("$.last").value(true));
+    }
+
+    @Test
+    void getAllTenants_withSearchParam_forwardsToService() throws Exception {
+        when(tenantService.getAllTenants(anyInt(), anyInt(), anyString(), eq("acme"))).thenReturn(samplePage());
+
+        mockMvc.perform(get("/api/tenants").param("search", "acme"))
+                .andExpect(status().isOk());
+
+        verify(tenantService).getAllTenants(eq(0), eq(10), anyString(), eq("acme"));
     }
 
     // ── GET /api/tenants/{id} ─────────────────────────────────────────────────

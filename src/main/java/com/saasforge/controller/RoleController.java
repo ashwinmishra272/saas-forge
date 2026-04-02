@@ -28,8 +28,9 @@ public class RoleController {
     @GetMapping
     @SecurityRequirement(name = "Bearer Authentication")
     @Operation(summary = "Get all roles", description = "Returns all roles for current tenant")
-    public ResponseEntity<List<RoleResponse>> getAllRoles() {
-        return ResponseEntity.ok(roleService.getAllRoles());
+    public ResponseEntity<List<RoleResponse>> getAllRoles(
+            @RequestParam(defaultValue = "") String search) {
+        return ResponseEntity.ok(roleService.getAllRoles(search));
     }
 
     @GetMapping("/{id}")

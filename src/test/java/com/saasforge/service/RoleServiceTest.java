@@ -75,7 +75,7 @@ class RoleServiceTest {
                 buildRole(2L, "Viewer", "VIEWER")
         ));
 
-        List<RoleResponse> result = roleService.getAllRoles();
+        List<RoleResponse> result = roleService.getAllRoles("");
 
         assertThat(result).hasSize(2);
         assertThat(result.get(0).getRoleKey()).isEqualTo("ADMIN");
@@ -86,7 +86,7 @@ class RoleServiceTest {
     void getAllRoles_returnsEmptyList_whenNoRoles() {
         when(roleRepository.findByTenantId(TENANT_ID)).thenReturn(List.of());
 
-        List<RoleResponse> result = roleService.getAllRoles();
+        List<RoleResponse> result = roleService.getAllRoles("");
 
         assertThat(result).isEmpty();
     }
@@ -97,13 +97,36 @@ class RoleServiceTest {
                 List.of(buildRole(5L, "Manager", "MANAGER"))
         );
 
-        List<RoleResponse> result = roleService.getAllRoles();
+        List<RoleResponse> result = roleService.getAllRoles("");
 
         RoleResponse response = result.get(0);
         assertThat(response.getId()).isEqualTo(5L);
         assertThat(response.getName()).isEqualTo("Manager");
         assertThat(response.getRoleKey()).isEqualTo("MANAGER");
         assertThat(response.getTenantId()).isEqualTo(TENANT_ID);
+    }
+
+    @Test
+    void getAllRoles_withSearch_callsSearchRepository() {
+        when(roleRepository.findByTenantIdAndNameContainingIgnoreCase(TENANT_ID, "admin"))
+                .thenReturn(List.of(buildRole(1L, "Admin", "ADMIN")));
+
+        List<RoleResponse> result = roleService.getAllRoles("admin");
+
+        assertThat(result).hasSize(1);
+        assertThat(result.get(0).getRoleKey()).isEqualTo("ADMIN");
+        verify(roleRepository).findByTenantIdAndNameContainingIgnoreCase(TENANT_ID, "admin");
+        verify(roleRepository, never()).findByTenantId(any());
+    }
+
+    @Test
+    void getAllRoles_withBlankSearch_callsFindByTenantId() {
+        when(roleRepository.findByTenantId(TENANT_ID)).thenReturn(List.of());
+
+        roleService.getAllRoles("   ");
+
+        verify(roleRepository).findByTenantId(TENANT_ID);
+        verify(roleRepository, never()).findByTenantIdAndNameContainingIgnoreCase(any(), any());
     }
 
     // ── getRoleById ───────────────────────────────────────────────────────────
@@ -293,7 +316,7 @@ class RoleServiceTest {
     void getAllRoles_usesCurrentTenantIdFromContext() {
         when(roleRepository.findByTenantId(TENANT_ID)).thenReturn(List.of());
 
-        roleService.getAllRoles();
+        roleService.getAllRoles("");
 
         verify(roleRepository).findByTenantId(TENANT_ID);
         verify(roleRepository, never()).findByTenantId(argThat(id -> !id.equals(TENANT_ID)));

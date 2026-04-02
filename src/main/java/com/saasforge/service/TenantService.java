@@ -70,15 +70,18 @@ public class TenantService {
     }
 
     @PreAuthorize("hasRole('ADMIN')")
-    public PageResponse<TenantResponse> getAllTenants(int page, int size, String sortBy) {
+    public PageResponse<TenantResponse> getAllTenants(int page, int size, String sortBy, String search) {
         Long tenantId = TenantContext.getCurrentTenantId();
-        log.info("Fetching tenants - tenantId={}, page={}, size={}, sortBy={}", tenantId, page, size, sortBy);
+        log.info("Fetching tenants for tenantId={} page={} size={} search={}", tenantId, page, size, search);
+
         Pageable pageable = PageRequest.of(page, size, Sort.by(sortBy).ascending());
-        // Scoped to current tenant — admins only see their own workspace
-        Page<Tenant> tenantPage = tenantRepository.findByIdAndDeletedFalse(tenantId, pageable);
-        Page<TenantResponse> responsePage = tenantPage.map(this::toResponse);
-        return new PageResponse<>(responsePage);
+        Page<Tenant> tenantPage = (search == null || search.isBlank())
+                ? tenantRepository.findByIdAndDeletedFalse(tenantId, pageable)
+                : tenantRepository.searchById(tenantId, search.trim(), pageable);
+
+        return new PageResponse<>(tenantPage.map(this::toResponse));
     }
+
 
     @PreAuthorize("hasRole('ADMIN')")
     public TenantResponse getTenantById(Long id) {

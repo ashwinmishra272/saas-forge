@@ -79,7 +79,7 @@ class UserServiceTest {
         ));
         when(userRepository.findByTenantId(eq(TENANT_ID), any(Pageable.class))).thenReturn(userPage);
 
-        PageResponse<UserResponse> result = userService.getAllUsers(0, 10, "id");
+        PageResponse<UserResponse> result = userService.getAllUsers(0, 10, "id", "");
 
         assertThat(result.getContent()).hasSize(2);
         assertThat(result.getContent().get(0).getEmail()).isEqualTo("alice@test.com");
@@ -90,7 +90,7 @@ class UserServiceTest {
     void getAllUsers_returnsEmptyPage_whenNoUsers() {
         when(userRepository.findByTenantId(eq(TENANT_ID), any(Pageable.class))).thenReturn(Page.empty());
 
-        PageResponse<UserResponse> result = userService.getAllUsers(0, 10, "id");
+        PageResponse<UserResponse> result = userService.getAllUsers(0, 10, "id", "");
 
         assertThat(result.getContent()).isEmpty();
         assertThat(result.getTotalElements()).isZero();
@@ -100,7 +100,7 @@ class UserServiceTest {
     void getAllUsers_passesCorrectPageableToRepository() {
         when(userRepository.findByTenantId(eq(TENANT_ID), any(Pageable.class))).thenReturn(Page.empty());
 
-        userService.getAllUsers(2, 5, "name");
+        userService.getAllUsers(2, 5, "name", "");
 
         ArgumentCaptor<Pageable> captor = ArgumentCaptor.forClass(Pageable.class);
         verify(userRepository).findByTenantId(eq(TENANT_ID), captor.capture());
@@ -115,13 +115,34 @@ class UserServiceTest {
         Page<User> userPage = new PageImpl<>(users, PageRequest.of(0, 5), 1);
         when(userRepository.findByTenantId(eq(TENANT_ID), any(Pageable.class))).thenReturn(userPage);
 
-        PageResponse<UserResponse> result = userService.getAllUsers(0, 5, "id");
+        PageResponse<UserResponse> result = userService.getAllUsers(0, 5, "id", "");
 
         assertThat(result.getTotalElements()).isEqualTo(1);
         assertThat(result.getTotalPages()).isEqualTo(1);
         assertThat(result.isLast()).isTrue();
         assertThat(result.getSize()).isEqualTo(5);
         assertThat(result.getPage()).isZero();
+    }
+
+    @Test
+    void getAllUsers_withSearch_callsSearchByTenantId() {
+        when(userRepository.searchByTenantId(eq(TENANT_ID), eq("alice"), any(Pageable.class)))
+                .thenReturn(Page.empty());
+
+        userService.getAllUsers(0, 10, "id", "alice");
+
+        verify(userRepository).searchByTenantId(eq(TENANT_ID), eq("alice"), any(Pageable.class));
+        verify(userRepository, never()).findByTenantId(any(), any());
+    }
+
+    @Test
+    void getAllUsers_withBlankSearch_callsFindByTenantId() {
+        when(userRepository.findByTenantId(eq(TENANT_ID), any(Pageable.class))).thenReturn(Page.empty());
+
+        userService.getAllUsers(0, 10, "id", "   ");
+
+        verify(userRepository).findByTenantId(eq(TENANT_ID), any(Pageable.class));
+        verify(userRepository, never()).searchByTenantId(any(), any(), any());
     }
 
     // ── getUserById ───────────────────────────────────────────────────────────

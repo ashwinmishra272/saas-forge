@@ -22,6 +22,7 @@ import java.util.List;
 
 import static org.hamcrest.Matchers.hasSize;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
@@ -55,7 +56,7 @@ class RoleControllerTest {
 
     @Test
     void getAllRoles_returns200WithList() throws Exception {
-        when(roleService.getAllRoles()).thenReturn(List.of(
+        when(roleService.getAllRoles(anyString())).thenReturn(List.of(
                 sampleRole(1L, "Admin", "ADMIN"),
                 sampleRole(2L, "Viewer", "VIEWER")
         ));
@@ -69,7 +70,7 @@ class RoleControllerTest {
 
     @Test
     void getAllRoles_returnsEmptyList() throws Exception {
-        when(roleService.getAllRoles()).thenReturn(List.of());
+        when(roleService.getAllRoles(anyString())).thenReturn(List.of());
 
         mockMvc.perform(get("/api/roles"))
                 .andExpect(status().isOk())
@@ -78,7 +79,7 @@ class RoleControllerTest {
 
     @Test
     void getAllRoles_mapsAllFieldsInListItems() throws Exception {
-        when(roleService.getAllRoles()).thenReturn(List.of(sampleRole(7L, "Manager", "MANAGER")));
+        when(roleService.getAllRoles(anyString())).thenReturn(List.of(sampleRole(7L, "Manager", "MANAGER")));
 
         mockMvc.perform(get("/api/roles"))
                 .andExpect(status().isOk())
@@ -87,6 +88,17 @@ class RoleControllerTest {
                 .andExpect(jsonPath("$[0].name").value("Manager"))
                 .andExpect(jsonPath("$[0].roleKey").value("MANAGER"))
                 .andExpect(jsonPath("$[0].tenantId").value(1));
+    }
+
+    @Test
+    void getAllRoles_withSearchParam_forwardsToService() throws Exception {
+        when(roleService.getAllRoles(eq("admin"))).thenReturn(List.of(sampleRole(1L, "Admin", "ADMIN")));
+
+        mockMvc.perform(get("/api/roles").param("search", "admin"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(1));
+
+        verify(roleService).getAllRoles("admin");
     }
 
     // ── GET /api/roles/{id} ───────────────────────────────────────────────────

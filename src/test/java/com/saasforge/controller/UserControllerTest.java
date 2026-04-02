@@ -57,7 +57,7 @@ class UserControllerTest {
 
     @Test
     void getAllUsers_returns200WithPagedContent() throws Exception {
-        when(userService.getAllUsers(anyInt(), anyInt(), anyString())).thenReturn(samplePage(
+        when(userService.getAllUsers(anyInt(), anyInt(), anyString(), anyString())).thenReturn(samplePage(
                 sampleUser(1L, "Alice", "alice@test.com"),
                 sampleUser(2L, "Bob", "bob@test.com")
         ));
@@ -71,7 +71,7 @@ class UserControllerTest {
 
     @Test
     void getAllUsers_returnsEmptyContent() throws Exception {
-        when(userService.getAllUsers(anyInt(), anyInt(), anyString())).thenReturn(samplePage());
+        when(userService.getAllUsers(anyInt(), anyInt(), anyString(), anyString())).thenReturn(samplePage());
 
         mockMvc.perform(get("/api/users"))
                 .andExpect(status().isOk())
@@ -81,7 +81,7 @@ class UserControllerTest {
 
     @Test
     void getAllUsers_returnsPageMetadata() throws Exception {
-        when(userService.getAllUsers(anyInt(), anyInt(), anyString())).thenReturn(samplePage(
+        when(userService.getAllUsers(anyInt(), anyInt(), anyString(), anyString())).thenReturn(samplePage(
                 sampleUser(1L, "Alice", "alice@test.com")
         ));
 
@@ -94,7 +94,7 @@ class UserControllerTest {
 
     @Test
     void getAllUsers_forwardsPageParams() throws Exception {
-        when(userService.getAllUsers(eq(2), eq(5), eq("name"))).thenReturn(samplePage());
+        when(userService.getAllUsers(eq(2), eq(5), eq("name"), anyString())).thenReturn(samplePage());
 
         mockMvc.perform(get("/api/users")
                         .param("page", "2")
@@ -102,9 +102,19 @@ class UserControllerTest {
                         .param("sortBy", "name"))
                 .andExpect(status().isOk());
 
-        verify(userService).getAllUsers(2, 5, "name");
+        verify(userService).getAllUsers(eq(2), eq(5), eq("name"), anyString());
     }
 
+
+    @Test
+    void getAllUsers_withSearchParam_forwardsToService() throws Exception {
+        when(userService.getAllUsers(anyInt(), anyInt(), anyString(), eq("alice"))).thenReturn(samplePage());
+
+        mockMvc.perform(get("/api/users").param("search", "alice"))
+                .andExpect(status().isOk());
+
+        verify(userService).getAllUsers(eq(0), eq(10), anyString(), eq("alice"));
+    }
 
     @Test
     void getUserById_found_returns200() throws Exception {

@@ -26,14 +26,18 @@ public class UserService {
     private final UserRepository userRepository;
 
     @PreAuthorize("hasRole('ADMIN')")
-    public PageResponse<UserResponse> getAllUsers(int page, int size, String sortBy) {
+    public PageResponse<UserResponse> getAllUsers(int page, int size, String sortBy, String search) {
         Long tenantId = TenantContext.getCurrentTenantId();
-        log.info("Fetching users for tenantId={} page={} size={}", tenantId, page, size);
+        log.info("Fetching users for tenantId={} page={} size={} search={}", tenantId, page, size, search);
 
         Pageable pageable = PageRequest.of(page, size, Sort.by(sortBy).ascending());
-        Page<User> userPage = userRepository.findByTenantId(tenantId, pageable);
+        Page<User> userPage = (search == null || search.isBlank())
+                ? userRepository.findByTenantId(tenantId, pageable)
+                : userRepository.searchByTenantId(tenantId, search.trim(), pageable);
+
         return new PageResponse<>(userPage.map(this::toResponse));
     }
+
 
     @PreAuthorize("hasRole('ADMIN') or @userSecurity.isCurrentUser(#id)")
     public UserResponse getUserById(Long id) {
