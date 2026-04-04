@@ -39,7 +39,7 @@ class PasswordResetServiceTest {
     private PasswordEncoder passwordEncoder;
 
     @Mock
-    private EmailService emailService;
+    private NotificationProducer notificationProducer;
 
     @InjectMocks
     private PasswordResetService passwordResetService;
@@ -67,7 +67,6 @@ class PasswordResetServiceTest {
         return req;
     }
 
-    // ── forgotPassword ────────────────────────────────────────────────────────
 
     @Test
     void forgotPassword_emailNotFound_throwsResourceNotFoundException() {
@@ -135,7 +134,7 @@ class PasswordResetServiceTest {
         verify(passwordResetTokenRepository).save(captor.capture());
 
         String savedToken = captor.getValue().getToken();
-        verify(emailService).sendPasswordResetEmail("user@test.com", savedToken);
+        verify(notificationProducer).publishPasswordReset("user@test.com", savedToken);
     }
 
     @Test
@@ -148,7 +147,6 @@ class PasswordResetServiceTest {
         verify(passwordResetTokenRepository, never()).save(any());
     }
 
-    // ── resetPassword ─────────────────────────────────────────────────────────
 
     @Test
     void resetPassword_invalidToken_throwsBadRequestException() {

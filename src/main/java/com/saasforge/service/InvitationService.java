@@ -34,29 +34,25 @@ public class InvitationService {
     private final RoleRepository roleRepository;
     private final TenantRepository tenantRepository;
     private final PasswordEncoder passwordEncoder;
-    private final EmailService emailService;
+    private final NotificationProducer notificationProducer;
 
     public void inviteUser(InviteUserRequest request) {
         Long tenantId = TenantContext.getCurrentTenantId();
 
-        // Get currently logged in admin
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         String adminEmail = (String) authentication.getPrincipal();
 
         log.info("Admin {} inviting {} to tenantId={}", adminEmail, request.getEmail(), tenantId);
 
-        // Check if email is already a registered user in this tenant
         if (userRepository.existsByEmailAndTenantId(request.getEmail(), tenantId)) {
             throw new BadRequestException("User with email '" + request.getEmail() + "' already exists in this tenant");
         }
 
-        // Check if there is already a pending invitation for this email
         if (invitationTokenRepository.existsByInvitedEmailAndTenantIdAndAcceptedFalse(
                 request.getEmail(), tenantId)) {
             throw new BadRequestException("A pending invitation already exists for: " + request.getEmail());
         }
 
-        // Fetch tenant and role
         Tenant tenant = tenantRepository.findById(tenantId)
                 .orElseThrow(() -> new ResourceNotFoundException("Tenant not found"));
 
@@ -66,7 +62,6 @@ public class InvitationService {
         User admin = userRepository.findByEmail(adminEmail)
                 .orElseThrow(() -> new ResourceNotFoundException("Admin user not found"));
 
-        // Create invitation token
         String tokenValue = UUID.randomUUID().toString();
 
         InvitationToken invitation = new InvitationToken();
@@ -82,7 +77,7 @@ public class InvitationService {
 
         log.info("Invitation created for {} in tenantId={}", request.getEmail(), tenantId);
 
-        emailService.sendInvitationEmail(request.getEmail(), tokenValue, tenant.getName());
+        notificationProducer.publishInvitation(request.getEmail(), tokenValue, tenant.getName());
     }
 
     @Transactional
@@ -103,13 +98,11 @@ public class InvitationService {
             throw new BadRequestException("Invitation has expired");
         }
 
-        // Check if email was already registered (edge case — registered between invite and accept)
         if (userRepository.existsByEmailAndTenantId(
                 invitation.getInvitedEmail(), invitation.getTenant().getId())) {
             throw new BadRequestException("An account with this email already exists");
         }
 
-        // Create the user account
         User newUser = new User();
         newUser.setName(request.getName());
         newUser.setEmail(invitation.getInvitedEmail());
@@ -120,7 +113,6 @@ public class InvitationService {
 
         userRepository.save(newUser);
 
-        // Mark invitation as accepted
         invitation.setAccepted(true);
         invitationTokenRepository.save(invitation);
 

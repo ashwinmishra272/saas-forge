@@ -54,7 +54,7 @@ class InvitationServiceTest {
     private PasswordEncoder passwordEncoder;
 
     @Mock
-    private EmailService emailService;
+    private NotificationProducer notificationProducer;
 
     @InjectMocks
     private InvitationService invitationService;
@@ -204,7 +204,7 @@ class InvitationServiceTest {
         ArgumentCaptor<InvitationToken> captor = ArgumentCaptor.forClass(InvitationToken.class);
         verify(invitationTokenRepository).save(captor.capture());
         String savedToken = captor.getValue().getToken();
-        verify(emailService).sendInvitationEmail("newuser@test.com", savedToken, tenant.getName());
+        verify(notificationProducer).publishInvitation("newuser@test.com", savedToken, tenant.getName());
     }
 
     @Test
